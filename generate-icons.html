@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Generate PWA Icons</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; background: #111827; color: #F9FAFB; }
+    h1 { color: #60A5FA; margin-bottom: 8px; }
+    p  { color: #9CA3AF; margin-bottom: 24px; line-height: 1.6; }
+    .btn { display: inline-block; padding: 12px 24px; background: #3B82F6; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; margin: 6px 6px 6px 0; }
+    .btn:hover { background: #2563EB; }
+    canvas { display: none; }
+    .done { color: #10B981; margin-top: 16px; display: none; }
+  </style>
+</head>
+<body>
+  <h1>Generate PWA Icons</h1>
+  <p>
+    Click each button below to download the PNG icon files your PWA needs.
+    Save them into the <code>public/icons/</code> folder of your project,
+    replacing the placeholder files.
+  </p>
+
+  <button class="btn" onclick="generate(192,  'icon-192.png')">Download icon-192.png</button>
+  <button class="btn" onclick="generate(512,  'icon-512.png')">Download icon-512.png</button>
+  <button class="btn" onclick="generate(180,  'apple-touch-icon.png')">Download apple-touch-icon.png</button>
+
+  <p class="done" id="done">✓ Downloaded! Move the file to <code>public/icons/</code></p>
+
+  <canvas id="c"></canvas>
+
+  <script>
+    function generate(size, filename) {
+      const canvas = document.getElementById('c');
+      canvas.width  = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const r   = size * 0.215;   // corner radius
+
+      // Background
+      ctx.fillStyle = '#1F2937';
+      roundRect(ctx, 0, 0, size, size, r);
+      ctx.fill();
+
+      // Inner card
+      ctx.fillStyle = '#374151';
+      roundRect(ctx, size*0.15, size*0.19, size*0.70, size*0.62, size*0.055);
+      ctx.fill();
+
+      // Task rows
+      const rows    = [0.335, 0.43, 0.525, 0.62];
+      const cx      = size * 0.23;   // checkbox center x
+      const lineX   = size * 0.31;
+      const lineH   = size * 0.036;
+
+      rows.forEach((yRatio, i) => {
+        const cy = size * yRatio;
+
+        // Line
+        ctx.fillStyle = '#6B7280';
+        const lineW = [size*0.37, size*0.28, size*0.32, size*0.25][i];
+        roundRect(ctx, lineX, cy - lineH/2, lineW, lineH, lineH/2);
+        ctx.fill();
+
+        if (i === 0) {
+          // Green filled checkbox
+          ctx.fillStyle = '#10B981';
+          ctx.beginPath();
+          ctx.arc(cx, cy, size*0.052, 0, Math.PI*2);
+          ctx.fill();
+          // Checkmark
+          const s = size * 0.028;
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth   = size * 0.018;
+          ctx.lineCap     = 'round';
+          ctx.lineJoin    = 'round';
+          ctx.beginPath();
+          ctx.moveTo(cx - s, cy);
+          ctx.lineTo(cx - s*0.1, cy + s*0.9);
+          ctx.lineTo(cx + s*1.1, cy - s*0.9);
+          ctx.stroke();
+        } else {
+          // Empty checkbox
+          ctx.strokeStyle = '#4B5563';
+          ctx.lineWidth   = size * 0.014;
+          ctx.beginPath();
+          ctx.arc(cx, cy, size*0.046, 0, Math.PI*2);
+          ctx.stroke();
+        }
+      });
+
+      // Download
+      const a    = document.createElement('a');
+      a.href     = canvas.toDataURL('image/png');
+      a.download = filename;
+      a.click();
+
+      document.getElementById('done').style.display = 'block';
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y,     x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h,     x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y,         x + r, y);
+      ctx.closePath();
+    }
+  </script>
+</body>
+</html>
