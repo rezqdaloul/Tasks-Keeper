@@ -110,7 +110,7 @@ export default function App() {
   const [filterUrg, setFilterUrg]         = useState('all');
   const [filterPri, setFilterPri]         = useState('all');
   const [saveStatus, setSaveStatus]       = useState('saved');
-  const [showExitScreen, setShowExitScreen] = useState(false);
+  const [closeToast, setCloseToast]       = useState(false);
 
   // history
   const [history, setHistory]         = useState([init.users]);
@@ -260,16 +260,11 @@ export default function App() {
 
   // ── PWA close ────────────────────────────────────────────────────────────
   const handleClose = () => {
-    // Detect if running as an installed PWA (standalone mode)
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
-                  window.navigator.standalone === true;
-    if (isPWA) {
-      // In PWA mode window.close() is blocked by iOS — show exit screen instead
-      setShowExitScreen(true);
-    } else {
-      // In a regular browser tab — close it
-      window.close();
-    }
+    window.close();
+    setTimeout(() => {
+      setCloseToast(true);
+      setTimeout(() => setCloseToast(false), 4000);
+    }, 300);
   };
 
   // ── Recurrence ───────────────────────────────────────────────────────────
@@ -573,13 +568,10 @@ export default function App() {
   }, [currentTopicData, showUrgency]);
 
   // ── Shared styles ────────────────────────────────────────────────────────
-  // pageCard: full-screen view container — fills the entire viewport
-  const pageCard = { backgroundColor:T.bg, width:'100%', minHeight:'100dvh', display:'flex', flexDirection:'column', overflowX:'hidden' };
-  // card: used for popups and dropdowns only (keeps border-radius)
-  const card   = { backgroundColor:T.bg, border:`1px solid ${T.border}`, borderRadius:14 };
+  const card   = { backgroundColor:T.bg,      border:`1px solid ${T.border}`, borderRadius:14 };
   const surf   = { backgroundColor:T.surface, border:`1px solid ${T.border}`, borderRadius:9  };
   const inp    = { backgroundColor:T.inputBg, border:`1px solid ${T.inputBorder}`, color:T.text, borderRadius:8, padding:'7px 11px', fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' };
-  const hdr    = { backgroundColor:T.headerBg, padding:'11px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 };
+  const hdr    = { backgroundColor:T.headerBg, padding:'11px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' };
   const iconBtn = (extra={}) => ({ background:'rgba(255,255,255,0.13)', border:'none', borderRadius:7, padding:'5px 7px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', ...extra });
   const primBtn = (extra={}) => ({ backgroundColor:T.primary, color:'#fff', border:'none', borderRadius:8, padding:'7px 13px', cursor:'pointer', fontSize:13, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:4, ...extra });
 
@@ -607,37 +599,18 @@ export default function App() {
     </>
   );
 
-  // ── PWA Exit Screen ───────────────────────────────────────────────────────
-  // Shown when the user taps X while in installed PWA mode on iPhone.
-  // iOS blocks window.close() in standalone apps, so we show this instead.
-  const ExitScreen = () => !showExitScreen ? null : (
-    <div style={{ position:'fixed', inset:0, zIndex:9999, backgroundColor:T.bg, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:20, padding:32 }}>
-      {/* Animated home bar indicator */}
-      <div style={{ fontSize:56, lineHeight:1 }}>📱</div>
-      <div style={{ color:T.text, fontSize:22, fontWeight:700, textAlign:'center' }}>Ready to leave?</div>
-      <div style={{ color:T.textMuted, fontSize:14, textAlign:'center', lineHeight:1.7, maxWidth:260 }}>
-        Swipe up from the bottom of the screen, or press your Home button to exit the app.
-      </div>
-      {/* Visual swipe hint */}
-      <div style={{ marginTop:8, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
-        <div style={{ width:40, height:5, borderRadius:3, backgroundColor:T.textMuted, opacity:0.5 }} />
-        <div style={{ color:T.textMuted, fontSize:11 }}>swipe up</div>
-      </div>
-      <button
-        onClick={() => setShowExitScreen(false)}
-        style={{ ...primBtn(), marginTop:16, padding:'12px 32px', fontSize:15, borderRadius:12 }}
-      >
-        Go Back
-      </button>
+  // ── PWA close toast ──────────────────────────────────────────────────────
+  const CloseToast = () => closeToast ? (
+    <div style={{ position:'fixed', bottom:36, left:'50%', transform:'translateX(-50%)', backgroundColor:'#1F2937', color:'#F9FAFB', padding:'12px 20px', borderRadius:12, fontSize:13, zIndex:9999, textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,.45)', maxWidth:290, lineHeight:1.5 }}>
+      Press the Home button or swipe up to exit the app
     </div>
-  );
+  ) : null;
 
   // ─────────────────────────────────────────────────────────────────────────
   // SETTINGS VIEW
   // ─────────────────────────────────────────────────────────────────────────
   if (showSettings) return (
-    <div style={pageCard}>
-      <ExitScreen />
+    <div style={{ ...card, width:'100%', maxWidth:360, margin:'0 auto', overflow:'hidden' }}>
       <div style={hdr}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={()=>setShowSettings(false)} style={iconBtn()}><ArrowLeft size={14} color={T.headerText} /></button>
@@ -652,7 +625,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ flex:1, overflowY:'auto', padding:'16px', display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ padding:'16px', display:'flex', flexDirection:'column', gap:14 }}>
 
         {/* Theme */}
         <div>
@@ -708,8 +681,8 @@ export default function App() {
   // USER SELECTION VIEW
   // ─────────────────────────────────────────────────────────────────────────
   if (!currentUser) return (
-    <div style={pageCard}>
-      <ExitScreen />
+    <div style={{ ...card, width:'100%', maxWidth:360, margin:'0 auto', overflow:'hidden' }}>
+      <CloseToast />
       <div style={hdr}>
         <div>
           <div style={{ color:T.headerText, fontWeight:700, fontSize:15 }}>Daily Tasks</div>
@@ -771,7 +744,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', display:'flex', flexDirection:'column', gap:6 }}>
+      <div style={{ padding:'10px 12px', maxHeight:300, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
         {Object.values(users).map(user => {
           const ul = userUrgLevel(user.topics);
           const us = urgStyle(ul);
@@ -821,8 +794,8 @@ export default function App() {
   // TOPIC SELECTION VIEW
   // ─────────────────────────────────────────────────────────────────────────
   if (!currentTopic) return (
-    <div style={pageCard}>
-      <ExitScreen />
+    <div style={{ ...card, width:'100%', maxWidth:360, margin:'0 auto', overflow:'hidden' }}>
+      <CloseToast />
       <div style={hdr}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={()=>setCurrentUser(null)} style={iconBtn()}><ArrowLeft size={14} color={T.headerText} /></button>
@@ -840,7 +813,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', display:'flex', flexDirection:'column', gap:6 }}>
+      <div style={{ padding:'10px 12px', maxHeight:270, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
         {Object.values(currentUserData.topics).map(tp => {
           const tl = topicUrgLevel(tp.tasks);
           const ts = urgStyle(tl);
@@ -896,12 +869,12 @@ export default function App() {
   const progress   = totalCount > 0 ? (doneCount/totalCount)*100 : 0;
 
   return (
-    <div style={{ ...pageCard, position:'relative' }}>
-      <ExitScreen />
+    <div style={{ ...card, width:'100%', maxWidth:360, margin:'0 auto', overflow:'hidden', position:'relative' }}>
+      <CloseToast />
 
       {/* Task details overlay */}
       {taskDetails && (
-        <div className="td-popup" style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,.55)', zIndex:50, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+        <div className="td-popup" style={{ position:'absolute', inset:0, backgroundColor:'rgba(0,0,0,.55)', zIndex:50, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ ...card, width:'100%', maxWidth:320, overflow:'hidden' }}>
             <div style={{ ...hdr, padding:'10px 14px' }}>
               <span style={{ color:T.headerText, fontWeight:700, fontSize:14 }}>Task Details</span>
@@ -1008,7 +981,7 @@ export default function App() {
       </div>
 
       {/* Tasks list */}
-      <div style={{ flex:1, overflowY:'auto', padding:'8px 12px', display:'flex', flexDirection:'column', gap:5 }}>
+      <div style={{ padding:'8px 12px', maxHeight:290, overflowY:'auto', display:'flex', flexDirection:'column', gap:5 }}>
         {filteredTasks.length===0 ? (
           <div style={{ textAlign:'center', padding:'34px 0', color:T.textMuted, fontSize:13 }}>
             {searchTerm||filterUrg!=='all'||filterPri!=='all' ? 'No tasks match your filters' : 'No tasks yet — add one below!'}
