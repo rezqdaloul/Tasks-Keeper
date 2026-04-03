@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Plus, X, Check, Trash2, Palette, ArrowLeft, Edit3, ChevronRight,
   Download, Upload, Settings, User, Calendar, ChevronDown, ChevronUp,
-  Search, BarChart3, Undo2, Redo2, FileText, Repeat, CalendarPlus
+  Search, BarChart3, Undo2, Redo2, FileText, Repeat, CalendarPlus,
+  CalendarDays, ChevronLeft, MapPin
 } from 'lucide-react';
 
 // ── Debounce ─────────────────────────────────────────────────────────────────
@@ -110,7 +111,8 @@ export default function App() {
   const [filterUrg, setFilterUrg]         = useState('all');
   const [filterPri, setFilterPri]         = useState('all');
   const [saveStatus, setSaveStatus]       = useState('saved');
-  const [closeToast, setCloseToast]       = useState(false);
+  const [showExitScreen, setShowExitScreen] = useState(false);
+  const [showCalendar, setShowCalendar]     = useState(false);
 
   // history
   const [history, setHistory]         = useState([init.users]);
@@ -260,11 +262,16 @@ export default function App() {
 
   // ── PWA close ────────────────────────────────────────────────────────────
   const handleClose = () => {
-    window.close();
-    setTimeout(() => {
-      setCloseToast(true);
-      setTimeout(() => setCloseToast(false), 4000);
-    }, 300);
+    // Detect if running as an installed PWA (standalone mode)
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                  window.navigator.standalone === true;
+    if (isPWA) {
+      // In PWA mode window.close() is blocked by iOS — show exit screen instead
+      setShowExitScreen(true);
+    } else {
+      // In a regular browser tab — close it
+      window.close();
+    }
   };
 
   // ── Recurrence ───────────────────────────────────────────────────────────
@@ -568,10 +575,13 @@ export default function App() {
   }, [currentTopicData, showUrgency]);
 
   // ── Shared styles ────────────────────────────────────────────────────────
-  const card   = { backgroundColor:T.bg,      border:`1px solid ${T.border}`, borderRadius:14 };
+  // pageCard: full-screen view container — fills the entire viewport
+  const pageCard = { backgroundColor:T.bg, border:`1px solid ${T.border}`, borderRadius:14, width:'100%', overflow:'hidden', display:'flex', flexDirection:'column' };
+  // card: used for popups and dropdowns only (keeps border-radius)
+  const card   = { backgroundColor:T.bg, border:`1px solid ${T.border}`, borderRadius:14 };
   const surf   = { backgroundColor:T.surface, border:`1px solid ${T.border}`, borderRadius:9  };
   const inp    = { backgroundColor:T.inputBg, border:`1px solid ${T.inputBorder}`, color:T.text, borderRadius:8, padding:'7px 11px', fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' };
-  const hdr    = { backgroundColor:T.headerBg, padding:'11px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' };
+  const hdr    = { backgroundColor:T.headerBg, padding:'11px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 };
   const iconBtn = (extra={}) => ({ background:'rgba(255,255,255,0.13)', border:'none', borderRadius:7, padding:'5px 7px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', ...extra });
   const primBtn = (extra={}) => ({ backgroundColor:T.primary, color:'#fff', border:'none', borderRadius:8, padding:'7px 13px', cursor:'pointer', fontSize:13, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:4, ...extra });
 
@@ -599,18 +609,325 @@ export default function App() {
     </>
   );
 
-  // ── PWA close toast ──────────────────────────────────────────────────────
-  const CloseToast = () => closeToast ? (
-    <div style={{ position:'fixed', bottom:36, left:'50%', transform:'translateX(-50%)', backgroundColor:'#1F2937', color:'#F9FAFB', padding:'12px 20px', borderRadius:12, fontSize:13, zIndex:9999, textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,.45)', maxWidth:290, lineHeight:1.5 }}>
-      Press the Home button or swipe up to exit the app
+  // ── PWA Exit Screen ───────────────────────────────────────────────────────
+  // Shown when the user taps X while in installed PWA mode on iPhone.
+  // iOS blocks window.close() in standalone apps, so we show this instead.
+  const ExitScreen = () => !showExitScreen ? null : (
+    <div style={{ position:'fixed', inset:0, zIndex:9999, backgroundColor:T.bg, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:20, padding:32 }}>
+      {/* Animated home bar indicator */}
+      <div style={{ fontSize:56, lineHeight:1 }}>📱</div>
+      <div style={{ color:T.text, fontSize:22, fontWeight:700, textAlign:'center' }}>Ready to leave?</div>
+      <div style={{ color:T.textMuted, fontSize:14, textAlign:'center', lineHeight:1.7, maxWidth:260 }}>
+        Swipe up from the bottom of the screen, or press your Home button to exit the app.
+      </div>
+      {/* Visual swipe hint */}
+      <div style={{ marginTop:8, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+        <div style={{ width:40, height:5, borderRadius:3, backgroundColor:T.textMuted, opacity:0.5 }} />
+        <div style={{ color:T.textMuted, fontSize:11 }}>swipe up</div>
+      </div>
+      <button
+        onClick={() => setShowExitScreen(false)}
+        style={{ ...primBtn(), marginTop:16, padding:'12px 32px', fontSize:15, borderRadius:12 }}
+      >
+        Go Back
+      </button>
     </div>
-  ) : null;
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CALENDAR — all tasks across all users/topics
+  // ─────────────────────────────────────────────────────────────────────────
+  const allTasksWithDates = useMemo(() => {
+    const result = [];
+    Object.values(users).forEach(user => {
+      Object.values(user.topics).forEach(topic => {
+        topic.tasks.forEach(task => {
+          if (task.dueDate && !task.completed)
+            result.push({ ...task, userName: user.name, userId: user.id, topicName: topic.name, topicId: topic.id });
+        });
+      });
+    });
+    return result;
+  }, [users]);
+
+  // Highest-priority colour for a date: urgent/high → red | normal → primary | low → orange
+  const datePriorityColor = (ds) => {
+    const tasks = allTasksWithDates.filter(t => t.dueDate === ds);
+    if (!tasks.length) return null;
+    const has = (p) => tasks.some(t => t.priority === p);
+    if (has('urgent') || has('high'))
+      return { bg: T.urgencyRedBg,    border: T.urgencyRedBorder,    text: T.urgencyRedText,    dot: T.urgencyRedDot    };
+    if (has('normal'))
+      return { bg: T.primary + '22',  border: T.primary,             text: T.primary,           dot: T.primary          };
+    return   { bg: T.urgencyOrangeBg, border: T.urgencyOrangeBorder, text: T.urgencyOrangeText, dot: T.urgencyOrangeDot };
+  };
+
+  const CalendarView = () => {
+    const today    = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const [calView,      setCalView]      = useState('agenda');
+    const [calYear,      setCalYear]      = useState(today.getFullYear());
+    const [calMonth,     setCalMonth]     = useState(today.getMonth());
+    const [selectedDate, setSelectedDate] = useState(todayStr);
+    const stripRef = useRef(null);
+
+    const MONTHS   = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const DAY_MIN  = ['S','M','T','W','T','F','S'];
+    const DAY_SHORT= ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    // 60-day window for agenda (7 days back → 53 days forward)
+    const agendaDays = useMemo(() => {
+      const days = [];
+      for (let i = -7; i < 54; i++) {
+        const dt = new Date(today); dt.setDate(dt.getDate() + i);
+        const ds = dt.toISOString().split('T')[0];
+        days.push({ ds, dt, tasks: allTasksWithDates.filter(t => t.dueDate === ds) });
+      }
+      return days;
+    }, [allTasksWithDates]);
+
+    // Scroll today into view in the strip on mount
+    useEffect(() => {
+      if (stripRef.current) {
+        const el = stripRef.current.querySelector('[data-today="true"]');
+        if (el) el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+      }
+    }, []);
+
+    // Agenda date header: "3 Apr · Today" style
+    const agendaHeader = (dt, ds) => {
+      const diff = Math.ceil((new Date(ds) - new Date(todayStr)) / 86400000);
+      const sub  = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff === -1 ? 'Yesterday' : dt.toLocaleDateString('en-US', { weekday: 'long' });
+      return { dateLabel: dt.toLocaleDateString('en-US', { day:'numeric', month:'short' }), sub, isToday: diff === 0, isPast: diff < 0 };
+    };
+
+    // Priority badge pill
+    const PriBadge = ({ p }) => {
+      const map = {
+        urgent: { bg: T.urgencyRedBg,    text: T.urgencyRedText,    label: 'Urgent' },
+        high:   { bg: T.urgencyRedBg,    text: T.urgencyRedText,    label: 'High'   },
+        normal: { bg: T.primary + '22',  text: T.primary,           label: 'Normal' },
+        low:    { bg: T.urgencyOrangeBg, text: T.urgencyOrangeText, label: 'Low'    },
+      };
+      const s = map[p] || map.normal;
+      return <span style={{ backgroundColor: s.bg, color: s.text, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: .4, whiteSpace: 'nowrap' }}>{s.label}</span>;
+    };
+
+    // Month grid helpers
+    const firstDay    = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const cells       = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+    const toDS        = (day) => `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const prevMonth   = () => { if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); } else setCalMonth(m => m - 1); setSelectedDate(null); };
+    const nextMonth   = () => { if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); } else setCalMonth(m => m + 1); setSelectedDate(null); };
+
+    return (
+      <div style={pageCard}>
+        <ExitScreen />
+
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div style={hdr}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <button onClick={() => setShowCalendar(false)} style={iconBtn()}>
+              <ArrowLeft size={14} color={T.headerText} />
+            </button>
+            <div>
+              <div style={{ color:T.headerText, fontWeight:700, fontSize:14 }}>Calendar</div>
+              <div style={{ color:T.headerText, opacity:.7, fontSize:11 }}>All tasks at a glance</div>
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+            {/* Agenda / Month toggle — like Teams' Agenda / Day */}
+            <div style={{ display:'flex', backgroundColor:'rgba(255,255,255,0.12)', borderRadius:20, padding:2, gap:2 }}>
+              {[['agenda','Agenda'],['month','Month']].map(([v,l]) => (
+                <button key={v} onClick={() => setCalView(v)}
+                  style={{ padding:'4px 12px', borderRadius:18, border:'none', backgroundColor: calView===v ? '#fff' : 'transparent', color: calView===v ? '#111827' : T.headerText, fontSize:12, fontWeight:600, cursor:'pointer', transition:'all .15s' }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <SaveDot />
+            <CloseBtn />
+          </div>
+        </div>
+
+        {/* ── AGENDA VIEW ────────────────────────────────────────────────── */}
+        {calView === 'agenda' && (<>
+          {/* Date strip — Teams style */}
+          <div style={{ backgroundColor: T.surface, borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
+            <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', padding:'10px 14px 0' }}>
+              <span style={{ color:T.text, fontWeight:700, fontSize:20 }}>{today.toLocaleDateString('en-US', { month:'long' })}</span>
+              <span style={{ color:T.textMuted, fontSize:13 }}>{today.getFullYear()}</span>
+            </div>
+            {/* Day-name row */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', padding:'6px 8px 0', gap:2 }}>
+              {DAY_SHORT.map(n => (
+                <div key={n} style={{ textAlign:'center', fontSize:10, fontWeight:700, color:T.textMuted, textTransform:'uppercase', letterSpacing:.4 }}>{n}</div>
+              ))}
+            </div>
+            {/* Scrollable date numbers */}
+            <div ref={stripRef} style={{ display:'flex', overflowX:'auto', padding:'6px 8px 10px', gap:4, scrollbarWidth:'none' }}>
+              {agendaDays.map(({ ds, dt }) => {
+                const pc      = datePriorityColor(ds);
+                const isToday = ds === todayStr;
+                const isSel   = ds === selectedDate;
+                const count   = allTasksWithDates.filter(t => t.dueDate === ds).length;
+                return (
+                  <button key={ds} data-today={isToday ? 'true' : 'false'} onClick={() => setSelectedDate(ds)}
+                    style={{ flexShrink:0, width:44, display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'6px 0 4px', borderRadius:12, border:'none', backgroundColor: isSel ? T.primary : isToday ? T.primary + '33' : pc ? pc.bg : 'transparent', cursor:'pointer', transition:'all .15s', outline:'none' }}>
+                    <span style={{ fontSize:10, fontWeight:600, color: isSel ? '#fff' : isToday ? T.primary : pc ? pc.text : T.textMuted }}>
+                      {dt.toLocaleDateString('en-US', { weekday:'short' }).charAt(0)}
+                    </span>
+                    <div style={{ width:32, height:32, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', backgroundColor: isSel || isToday ? T.primary : 'transparent', border: isSel || isToday ? 'none' : `2px solid ${pc ? pc.border : 'transparent'}` }}>
+                      <span style={{ fontSize:15, fontWeight: isToday || isSel ? 800 : 500, color: isSel || isToday ? '#fff' : pc ? pc.text : T.text }}>{dt.getDate()}</span>
+                    </div>
+                    {count > 0 && <span style={{ width:6, height:6, borderRadius:'50%', backgroundColor: isSel ? '#fff' : pc ? pc.dot : T.textMuted, flexShrink:0 }} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Agenda list */}
+          <div style={{ flex:1, overflowY:'auto' }}>
+            {agendaDays.filter(d => d.tasks.length > 0).length === 0 ? (
+              <div style={{ textAlign:'center', padding:'48px 24px', color:T.textMuted, fontSize:13 }}>No upcoming tasks with due dates</div>
+            ) : agendaDays.map(({ ds, dt, tasks }) => {
+              if (!tasks.length) return null;
+              const { dateLabel, sub, isToday, isPast } = agendaHeader(dt, ds);
+              return (
+                <div key={ds}>
+                  {/* Date header */}
+                  <div style={{ display:'flex', alignItems:'baseline', gap:10, padding:'14px 16px 6px', borderBottom:`1px solid ${T.border}` }}>
+                    <span style={{ fontSize:22, fontWeight:800, color: isToday ? T.primary : isPast ? T.textMuted : T.text, minWidth:36 }}>{dt.getDate()}</span>
+                    <div>
+                      <span style={{ fontSize:14, fontWeight:700, color: isToday ? T.primary : isPast ? T.textMuted : T.text }}>{dt.toLocaleDateString('en-US', { month:'short' })}</span>
+                      <span style={{ fontSize:12, color: isToday ? T.primary : T.textMuted, marginLeft:6 }}>{sub}</span>
+                    </div>
+                    <span style={{ marginLeft:'auto', fontSize:11, color:T.textMuted }}>{tasks.length} task{tasks.length > 1 ? 's' : ''}</span>
+                  </div>
+                  {/* Tasks */}
+                  <div style={{ padding:'6px 12px 4px', display:'flex', flexDirection:'column', gap:6 }}>
+                    {tasks.map(task => (
+                      <div key={`${task.userId}-${task.id}`} style={{ display:'flex', gap:10, padding:'10px 12px', borderRadius:10, backgroundColor:T.surface, border:`1px solid ${T.border}` }}>
+                        {/* Priority accent bar */}
+                        <div style={{ width:3, borderRadius:3, flexShrink:0, alignSelf:'stretch', backgroundColor: task.priority==='urgent'||task.priority==='high' ? T.urgencyRedDot : task.priority==='normal' ? T.primary : T.urgencyOrangeDot }} />
+                        <div style={{ flex:1, minWidth:0 }}>
+                          {/* Breadcrumb */}
+                          <div style={{ display:'flex', alignItems:'center', gap:3, marginBottom:3 }}>
+                            <MapPin size={9} color={T.textMuted} />
+                            <span style={{ fontSize:10, color:T.textMuted }}>{task.userName}</span>
+                            <ChevronRight size={8} color={T.textMuted} />
+                            <span style={{ fontSize:10, color:T.textMuted }}>{task.topicName}</span>
+                          </div>
+                          {/* Title + badge */}
+                          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:6 }}>
+                            <span style={{ color:T.text, fontSize:13, fontWeight:600, lineHeight:1.4, flex:1, wordBreak:'break-word' }}>{task.text}</span>
+                            <PriBadge p={task.priority} />
+                          </div>
+                          {task.description && <div style={{ color:T.textMuted, fontSize:11, marginTop:3, lineHeight:1.5 }}>{task.description}</div>}
+                          {task.recurrence && (
+                            <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:4 }}>
+                              <Repeat size={9} color={T.textMuted} />
+                              <span style={{ fontSize:10, color:T.textMuted }}>{task.recurrence.charAt(0).toUpperCase() + task.recurrence.slice(1)} recurring</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>)}
+
+        {/* ── MONTH VIEW ─────────────────────────────────────────────────── */}
+        {calView === 'month' && (<>
+          {/* Month nav */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', backgroundColor:T.surface, borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
+            <button onClick={prevMonth} style={{ background:'none', border:'none', cursor:'pointer', padding:'4px 8px', borderRadius:7 }}><ChevronLeft size={20} color={T.text} /></button>
+            <span style={{ color:T.text, fontWeight:700, fontSize:16 }}>{MONTHS[calMonth]} {calYear}</span>
+            <button onClick={nextMonth} style={{ background:'none', border:'none', cursor:'pointer', padding:'4px 8px', borderRadius:7 }}><ChevronRight size={20} color={T.text} /></button>
+          </div>
+          {/* Day headers */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', backgroundColor:T.surface, borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
+            {DAY_MIN.map((d, i) => <div key={i} style={{ textAlign:'center', padding:'6px 0', fontSize:11, fontWeight:700, color:T.textMuted }}>{d}</div>)}
+          </div>
+          {/* Grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, padding:8, flexShrink:0, backgroundColor:T.bg }}>
+            {cells.map((day, idx) => {
+              if (!day) return <div key={`e-${idx}`} />;
+              const ds    = toDS(day);
+              const pc    = datePriorityColor(ds);
+              const isTod = ds === todayStr;
+              const isSel = ds === selectedDate;
+              const cnt   = allTasksWithDates.filter(t => t.dueDate === ds).length;
+              return (
+                <button key={ds} onClick={() => setSelectedDate(isSel ? null : ds)}
+                  style={{ position:'relative', aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', borderRadius:10, border: isSel ? `2px solid ${T.primary}` : pc ? `1.5px solid ${pc.border}` : `1.5px solid transparent`, backgroundColor: isSel ? T.primary + '33' : pc ? pc.bg : 'transparent', cursor:'pointer', transition:'all .15s', outline:'none', padding:2 }}>
+                  {isTod && <div style={{ position:'absolute', inset:2, borderRadius:8, border:`2px solid ${T.primary}`, opacity:.5, pointerEvents:'none' }} />}
+                  <span style={{ fontSize:14, fontWeight: isTod ? 800 : 500, color: pc ? pc.text : T.text, lineHeight:1 }}>{day}</span>
+                  {cnt > 0 && <span style={{ fontSize:9, fontWeight:700, color: pc ? pc.text : T.textMuted, marginTop:2, lineHeight:1 }}>{cnt} task{cnt > 1 ? 's' : ''}</span>}
+                </button>
+              );
+            })}
+          </div>
+          {/* Legend */}
+          <div style={{ display:'flex', gap:12, alignItems:'center', padding:'8px 14px', backgroundColor:T.surface, borderTop:`1px solid ${T.border}`, borderBottom:`1px solid ${T.border}`, flexShrink:0, flexWrap:'wrap' }}>
+            <span style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:'uppercase', letterSpacing:.4 }}>Legend:</span>
+            {[{c:T.urgencyRedDot,l:'Urgent / High'},{c:T.primary,l:'Normal'},{c:T.urgencyOrangeDot,l:'Low'}].map(({c,l}) => (
+              <div key={l} style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:8, height:8, borderRadius:'50%', backgroundColor:c, flexShrink:0 }} /><span style={{ fontSize:10, color:T.textMuted }}>{l}</span></div>
+            ))}
+          </div>
+          {/* Selected date tasks */}
+          <div style={{ flex:1, overflowY:'auto', padding:'10px 12px' }}>
+            {!selectedDate ? (
+              <div style={{ textAlign:'center', padding:'40px 0', color:T.textMuted, fontSize:13 }}>Tap a date to see its tasks</div>
+            ) : (() => {
+              const tasks = allTasksWithDates.filter(t => t.dueDate === selectedDate);
+              if (!tasks.length) return <div style={{ textAlign:'center', padding:'32px 0', color:T.textMuted, fontSize:13 }}>No tasks on {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' })}</div>;
+              return (
+                <>
+                  <div style={{ color:T.text, fontWeight:700, fontSize:13, marginBottom:8 }}>
+                    {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' })}
+                    <span style={{ color:T.textMuted, fontWeight:400, marginLeft:6 }}>· {tasks.length} task{tasks.length > 1 ? 's' : ''}</span>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {tasks.map(task => (
+                      <div key={`${task.userId}-${task.id}`} style={{ padding:'10px 12px', borderRadius:10, border:`1px solid ${T.border}`, backgroundColor:T.surface, display:'flex', gap:10 }}>
+                        <div style={{ width:3, borderRadius:3, flexShrink:0, alignSelf:'stretch', backgroundColor: task.priority==='urgent'||task.priority==='high' ? T.urgencyRedDot : task.priority==='normal' ? T.primary : T.urgencyOrangeDot }} />
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:3, marginBottom:3 }}>
+                            <MapPin size={9} color={T.textMuted} /><span style={{ fontSize:10, color:T.textMuted }}>{task.userName}</span>
+                            <ChevronRight size={8} color={T.textMuted} /><span style={{ fontSize:10, color:T.textMuted }}>{task.topicName}</span>
+                          </div>
+                          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:6 }}>
+                            <span style={{ color:T.text, fontSize:13, fontWeight:600, flex:1, lineHeight:1.4, wordBreak:'break-word' }}>{task.text}</span>
+                            <span style={{ backgroundColor: task.priority==='urgent'||task.priority==='high' ? T.urgencyRedBg : task.priority==='normal' ? T.primary+'22' : T.urgencyOrangeBg, color: task.priority==='urgent'||task.priority==='high' ? T.urgencyRedText : task.priority==='normal' ? T.primary : T.urgencyOrangeText, fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20, textTransform:'uppercase', whiteSpace:'nowrap' }}>{task.priority}</span>
+                          </div>
+                          {task.description && <div style={{ color:T.textMuted, fontSize:11, marginTop:3 }}>{task.description}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </>)}
+      </div>
+    );
+  };
+
+  if (showCalendar) return <CalendarView />;
 
   // ─────────────────────────────────────────────────────────────────────────
   // SETTINGS VIEW
   // ─────────────────────────────────────────────────────────────────────────
-  if (showSettings) return (
-    <div style={{ ...card, width:'100%', maxWidth:360, margin:'0 auto', overflow:'hidden' }}>
+  if (showSettings)  return (
+    <div style={pageCard}>
+      <ExitScreen />
       <div style={hdr}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={()=>setShowSettings(false)} style={iconBtn()}><ArrowLeft size={14} color={T.headerText} /></button>
@@ -625,7 +942,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ padding:'16px', display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ flex:1, overflowY:'auto', padding:'16px', display:'flex', flexDirection:'column', gap:14 }}>
 
         {/* Theme */}
         <div>
@@ -681,8 +998,8 @@ export default function App() {
   // USER SELECTION VIEW
   // ─────────────────────────────────────────────────────────────────────────
   if (!currentUser) return (
-    <div style={{ ...card, width:'100%', maxWidth:360, margin:'0 auto', overflow:'hidden' }}>
-      <CloseToast />
+    <div style={pageCard}>
+      <ExitScreen />
       <div style={hdr}>
         <div>
           <div style={{ color:T.headerText, fontWeight:700, fontSize:15 }}>Daily Tasks</div>
@@ -693,6 +1010,9 @@ export default function App() {
           <UndoRedo />
           <button onClick={()=>setThemeName(n=>n==='light'?'dark':'light')} style={iconBtn()} title="Toggle theme">
             <Palette size={14} color={T.headerText} />
+          </button>
+          <button onClick={()=>setShowCalendar(true)} style={iconBtn()} title="Calendar overview">
+            <CalendarDays size={14} color={T.headerText} />
           </button>
           <button onClick={()=>setShowSettings(true)} style={iconBtn()} title="Settings">
             <Settings size={14} color={T.headerText} />
@@ -744,7 +1064,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ padding:'10px 12px', maxHeight:300, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
+      <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', display:'flex', flexDirection:'column', gap:6 }}>
         {Object.values(users).map(user => {
           const ul = userUrgLevel(user.topics);
           const us = urgStyle(ul);
@@ -794,8 +1114,8 @@ export default function App() {
   // TOPIC SELECTION VIEW
   // ─────────────────────────────────────────────────────────────────────────
   if (!currentTopic) return (
-    <div style={{ ...card, width:'100%', maxWidth:360, margin:'0 auto', overflow:'hidden' }}>
-      <CloseToast />
+    <div style={pageCard}>
+      <ExitScreen />
       <div style={hdr}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={()=>setCurrentUser(null)} style={iconBtn()}><ArrowLeft size={14} color={T.headerText} /></button>
@@ -813,7 +1133,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ padding:'10px 12px', maxHeight:270, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
+      <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', display:'flex', flexDirection:'column', gap:6 }}>
         {Object.values(currentUserData.topics).map(tp => {
           const tl = topicUrgLevel(tp.tasks);
           const ts = urgStyle(tl);
@@ -869,12 +1189,12 @@ export default function App() {
   const progress   = totalCount > 0 ? (doneCount/totalCount)*100 : 0;
 
   return (
-    <div style={{ ...card, width:'100%', maxWidth:360, margin:'0 auto', overflow:'hidden', position:'relative' }}>
-      <CloseToast />
+    <div style={{ ...pageCard, position:'relative' }}>
+      <ExitScreen />
 
       {/* Task details overlay */}
       {taskDetails && (
-        <div className="td-popup" style={{ position:'absolute', inset:0, backgroundColor:'rgba(0,0,0,.55)', zIndex:50, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+        <div className="td-popup" style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,.55)', zIndex:50, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ ...card, width:'100%', maxWidth:320, overflow:'hidden' }}>
             <div style={{ ...hdr, padding:'10px 14px' }}>
               <span style={{ color:T.headerText, fontWeight:700, fontSize:14 }}>Task Details</span>
@@ -981,7 +1301,7 @@ export default function App() {
       </div>
 
       {/* Tasks list */}
-      <div style={{ padding:'8px 12px', maxHeight:290, overflowY:'auto', display:'flex', flexDirection:'column', gap:5 }}>
+      <div style={{ flex:1, overflowY:'auto', padding:'8px 12px', display:'flex', flexDirection:'column', gap:5 }}>
         {filteredTasks.length===0 ? (
           <div style={{ textAlign:'center', padding:'34px 0', color:T.textMuted, fontSize:13 }}>
             {searchTerm||filterUrg!=='all'||filterPri!=='all' ? 'No tasks match your filters' : 'No tasks yet — add one below!'}
