@@ -159,11 +159,15 @@ export default function App() {
       const due=new Date(task.dueDate); due.setHours(0,0,0,0);
       const diff=Math.ceil((due-today)/86400000);
       if(diff>1) return;
-      const key=`notif-${task.id}-${task.dueDate}`;
-      if(sessionStorage.getItem(key)) return;
-      sessionStorage.setItem(key,'1');
+      const todayStr=today.toISOString().split('T')[0];
+      const key=`notif-${task.id}-${task.dueDate}-${todayStr}`;
+      if(localStorage.getItem(key)) return;
+      localStorage.setItem(key,'1');
       const label=diff<0?`${Math.abs(diff)}d overdue`:diff===0?'Due today':'Due tomorrow';
-      try{ new Notification(`📋 ${task.text}`,{body:`${user.name} → ${topic.name}  ·  ${label}`,icon:'/Tasks-Keeper/icons/icon-192.png',tag:key}); }catch(_){}
+      const subs=task.subtasks||[];
+      const subLine=subs.length>0?subs.map(s=>(s.completed?'✓ ':'○ ')+s.text).join('  '):'';
+      const body=subLine?`${subLine}\n${label}`:label;
+      try{ new Notification(`📋 ${task.text}`,{body,icon:'/Tasks-Keeper/icons/icon-192.png',tag:key}); }catch(_){}
     })));
   },[notifPermission]);
 
