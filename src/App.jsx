@@ -1,425 +1,1957 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
-  Plus, X, Check, Trash2, Palette, ArrowLeft, Edit3, ChevronRight,
-  Download, Upload, Settings, User, Calendar, ChevronDown, ChevronUp,
-  Search, BarChart3, Undo2, Redo2, FileText, Repeat, CalendarPlus,
-  CalendarDays, ChevronLeft, MapPin, ListChecks, Bell, BellOff
-} from 'lucide-react';
+  Plus, X, Check, Trash2, ArrowLeft, Edit3, ChevronRight, ChevronLeft,
+  Download, Upload, Settings, Search, Undo2, Redo2, Repeat,
+  CalendarPlus, CalendarDays, ListChecks, Bell, BellOff, Star, Clock,
+  Sunrise, MoreHorizontal, Home, CheckCircle2, ChevronDown, Timer,
+  Flame, BarChart2, GripVertical
+} from "lucide-react";
 
-const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
-
-const THEMES = {
-  light: {
-    bg:'#FFFFFF', surface:'#F3F4F6', text:'#111827', textMuted:'#6B7280',
-    border:'#E5E7EB', headerBg:'#1F2937', headerText:'#FFFFFF',
-    inputBg:'#FFFFFF', inputBorder:'#D1D5DB', primary:'#3B82F6',
-    success:'#10B981', completedText:'#9CA3AF', completedBg:'#F9FAFB',
-    urgencyRedBg:'#FEE2E2', urgencyRedBorder:'#F87171', urgencyRedText:'#B91C1C', urgencyRedDot:'#EF4444',
-    urgencyOrangeBg:'#FEF3C7', urgencyOrangeBorder:'#FCD34D', urgencyOrangeText:'#92400E', urgencyOrangeDot:'#F59E0B',
-  },
-  dark: {
-    bg:'#111827', surface:'#1F2937', text:'#F9FAFB', textMuted:'#9CA3AF',
-    border:'#374151', headerBg:'#0F172A', headerText:'#F9FAFB',
-    inputBg:'#1F2937', inputBorder:'#4B5563', primary:'#60A5FA',
-    success:'#34D399', completedText:'#6B7280', completedBg:'#374151',
-    urgencyRedBg:'#3B0000', urgencyRedBorder:'#DC2626', urgencyRedText:'#FCA5A5', urgencyRedDot:'#F87171',
-    urgencyOrangeBg:'#2D1600', urgencyOrangeBorder:'#D97706', urgencyOrangeText:'#FCD34D', urgencyOrangeDot:'#FBBF24',
-  },
+// ─── Debounce ─────────────────────────────────────────────────────────────────
+const debounce = (fn, ms) => {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 };
 
-const mkDate = (n) => { const dt=new Date(); dt.setDate(dt.getDate()+n); return dt.toISOString().split('T')[0]; };
+// ─── Themes ───────────────────────────────────────────────────────────────────
+const LIGHT = {
+  systemBg:"#F2F2F7", card:"#FFFFFF", cardAlt:"#F2F2F7", cardAlt2:"#E5E5EA",
+  sep:"rgba(60,60,67,0.12)", sepHard:"rgba(60,60,67,0.3)",
+  text:"#000000", muted:"#6E6E73", hint:"#AEAEB2",
+  primary:"#007AFF", primaryDim:"#E8F0FE",
+  success:"#34C759", danger:"#FF3B30", warn:"#FF9500",
+  rRedBg:"#FFE5E5", rRedBd:"#FF3B30", rRedTx:"#C8001A", rRedDt:"#FF3B30",
+  rOrgBg:"#FFF4E0", rOrgBd:"#FF9500", rOrgTx:"#7D3F00", rOrgDt:"#FF9500",
+  star:"#FF9500", pinBg:"#FFFBF2", pinBd:"rgba(255,149,0,0.3)",
+};
+const DARK = {
+  systemBg:"#000000", card:"#1C1C1E", cardAlt:"#2C2C2E", cardAlt2:"#3A3A3C",
+  sep:"rgba(255,255,255,0.08)", sepHard:"rgba(255,255,255,0.2)",
+  text:"#FFFFFF", muted:"#8E8E93", hint:"#48484A",
+  primary:"#0A84FF", primaryDim:"#001D3D",
+  success:"#30D158", danger:"#FF453A", warn:"#FF9F0A",
+  rRedBg:"#3A0000", rRedBd:"#FF453A", rRedTx:"#FF9999", rRedDt:"#FF453A",
+  rOrgBg:"#2D1400", rOrgBd:"#FF9F0A", rOrgTx:"#FFB347", rOrgDt:"#FF9F0A",
+  star:"#FF9F0A", pinBg:"#1F1600", pinBd:"rgba(255,159,10,0.35)",
+};
 
-const DEFAULT_USERS = {
-  'demo-user': {
-    id:'demo-user', name:'Demo User',
-    topics: {
-      'daily-tasks': { id:'daily-tasks', name:'Daily Tasks', tasks:[
-        { id:1, text:'Review project proposal', description:'Check Q4 proposal and give feedback', completed:false, dueDate:mkDate(1), priority:'high', recurrence:null, createdAt:new Date().toISOString(), completedAt:null, subtasks:[{id:101,text:'Read executive summary',completed:true},{id:102,text:'Check budget section',completed:false},{id:103,text:'Write feedback notes',completed:false}] },
-        { id:2, text:'Call dentist', description:'', completed:true, dueDate:null, priority:'normal', recurrence:null, createdAt:new Date().toISOString(), completedAt:new Date().toISOString(), subtasks:[] },
-        { id:3, text:'Buy groceries', description:'Milk, bread, eggs', completed:false, dueDate:mkDate(0), priority:'urgent', recurrence:'weekly', createdAt:new Date().toISOString(), completedAt:null, subtasks:[{id:104,text:'Milk',completed:false},{id:105,text:'Bread',completed:true},{id:106,text:'Eggs',completed:false}] },
+// ─── Time estimate labels ─────────────────────────────────────────────────────
+const EST_LABELS = { "":"–", "15":"15 min", "30":"30 min", "60":"1 hr", "120":"2 hr", "180":"3 hr" };
+
+// ─── Default data ─────────────────────────────────────────────────────────────
+const mkDate = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().split("T")[0]; };
+
+const DEFAULT_DATA = {
+  "demo-user": {
+    id:"demo-user", name:"Demo User",
+    topics:{
+      "daily-tasks":{ id:"daily-tasks", name:"Daily Tasks", tasks:[
+        { id:1, text:"Review project proposal", description:"Check Q4 proposal and give feedback",
+          completed:false, dueDate:mkDate(1), dueTime:"14:00", priority:"high", estimate:"60",
+          recurrence:null, createdAt:new Date().toISOString(), completedAt:null,
+          pinned:true, subtasks:[{id:101,text:"Read executive summary",completed:true},{id:102,text:"Check budget section",completed:false},{id:103,text:"Write feedback notes",completed:false}] },
+        { id:2, text:"Call dentist", description:"",
+          completed:true, dueDate:null, dueTime:null, priority:"normal", estimate:"",
+          recurrence:null, createdAt:new Date().toISOString(), completedAt:new Date().toISOString(),
+          pinned:false, subtasks:[] },
+        { id:3, text:"Buy groceries", description:"Milk, bread, eggs",
+          completed:false, dueDate:mkDate(0), dueTime:"18:30", priority:"urgent", estimate:"30",
+          recurrence:"weekly", createdAt:new Date().toISOString(), completedAt:null,
+          pinned:false, subtasks:[{id:104,text:"Milk",completed:false},{id:105,text:"Bread",completed:true},{id:106,text:"Eggs",completed:false}] },
       ]},
-      'work': { id:'work', name:'Work Tasks', tasks:[
-        { id:7, text:'Finish quarterly report', description:'Include all financial data', completed:false, dueDate:mkDate(-1), priority:'urgent', recurrence:null, createdAt:new Date().toISOString(), completedAt:null, subtasks:[] },
-        { id:8, text:'Team meeting at 3 PM', description:'Discuss new project timeline', completed:false, dueDate:mkDate(4), priority:'normal', recurrence:null, createdAt:new Date().toISOString(), completedAt:null, subtasks:[] },
+      "work":{ id:"work", name:"Work Tasks", tasks:[
+        { id:7, text:"Finish quarterly report", description:"Include all financial data",
+          completed:false, dueDate:mkDate(-1), dueTime:"09:00", priority:"urgent", estimate:"120",
+          recurrence:null, createdAt:new Date().toISOString(), completedAt:null,
+          pinned:true, subtasks:[] },
+        { id:8, text:"Team meeting at 3 PM", description:"Discuss new project timeline",
+          completed:false, dueDate:mkDate(4), dueTime:"15:00", priority:"normal", estimate:"60",
+          recurrence:null, createdAt:new Date().toISOString(), completedAt:null,
+          pinned:false, subtasks:[] },
+        { id:9, text:"Send project update", description:"",
+          completed:false, dueDate:mkDate(2), dueTime:null, priority:"high", estimate:"15",
+          recurrence:null, createdAt:new Date().toISOString(), completedAt:null,
+          pinned:false, subtasks:[] },
       ]},
     },
   },
 };
 
-const loadData = () => {
-  try {
-    const raw = localStorage.getItem('dtwv4');
-    if (raw) {
-      const p = JSON.parse(raw);
-      if (p?.users) {
-        // v2 migration: ensure subtasks array exists on all tasks
-        Object.values(p.users).forEach(u =>
-          Object.values(u.topics).forEach(tp =>
-            tp.tasks.forEach(t => { if (!t.subtasks) t.subtasks = []; })
-          )
-        );
-        return p;
-      }
-    }
-  } catch (_) {}
-  return { users:DEFAULT_USERS, currentUser:null, currentTopic:null, themeName:'light', showUrgency:true };
+// ─── Streak helpers (outside component) ──────────────────────────────────────
+const getStreakData = (users) => {
+  // Collect all unique completion dates across all tasks
+  const dates = new Set();
+  Object.values(users).forEach(u =>
+    Object.values(u.topics).forEach(tp =>
+      tp.tasks.forEach(t => {
+        if (t.completed && t.completedAt) {
+          dates.add(new Date(t.completedAt).toISOString().split("T")[0]);
+        }
+      })
+    )
+  );
+  const sorted = [...dates].sort((a, b) => b.localeCompare(a)); // newest first
+  if (!sorted.length) return { streak:0, weekData:[] };
+
+  // Streak = consecutive days ending today or yesterday
+  const today = new Date().toISOString().split("T")[0];
+  let streak = 0;
+  let check = new Date();
+  // If today has completions, start from today; else start from yesterday
+  if (!dates.has(today)) check.setDate(check.getDate() - 1);
+  while (true) {
+    const ds = check.toISOString().split("T")[0];
+    if (dates.has(ds)) { streak++; check.setDate(check.getDate() - 1); }
+    else break;
+  }
+
+  // Weekly bar data — last 7 days
+  const weekData = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split("T")[0];
+    let count = 0;
+    Object.values(users).forEach(u =>
+      Object.values(u.topics).forEach(tp =>
+        tp.tasks.forEach(t => {
+          if (t.completed && t.completedAt && new Date(t.completedAt).toISOString().split("T")[0] === ds) count++;
+        })
+      )
+    );
+    weekData.push({ ds, day:d.toLocaleDateString("en-US",{weekday:"short"}).slice(0,1), count });
+  }
+  return { streak, weekData };
 };
 
-export default function App() {
-  const init = loadData();
+// ─── Pure helpers (module-level — no state dependency) ───────────────────────
+const getDaysUtil = (ds) => {
+  if (!ds) return null;
+  const due = new Date(ds); due.setHours(0,0,0,0);
+  const now = new Date(); now.setHours(0,0,0,0);
+  return Math.ceil((due - now) / 86400000);
+};
+const urgLvUtil = (ds) => {
+  const d = getDaysUtil(ds);
+  if (d === null) return "none";
+  if (d < 0 || d <= 1) return "red";
+  if (d === 2) return "orange";
+  return "none";
+};
+const fmtDateUtil = (ds) => {
+  if (!ds) return null;
+  const d = getDaysUtil(ds);
+  if (d < 0)   return Math.abs(d) + "d overdue";
+  if (d === 0) return "Today";
+  if (d === 1) return "Tomorrow";
+  if (d <= 7)  return d + " days";
+  return new Date(ds).toLocaleDateString("en-US", { month:"short", day:"numeric" });
+};
+const fmtTimeUtil = (t) => {
+  if (!t) return null;
+  const [h, m] = t.split(":");
+  const hr = parseInt(h);
+  return (hr > 12 ? hr - 12 : hr || 12) + ":" + m + " " + (hr >= 12 ? "PM" : "AM");
+};
 
-  const [users,        setUsers]        = useState(init.users);
-  const [currentUser,  setCurrentUser]  = useState(init.currentUser);
-  const [currentTopic, setCurrentTopic] = useState(init.currentTopic);
-  const [themeName,    setThemeName]    = useState(init.themeName || 'light');
-  const [showUrgency,  setShowUrgency]  = useState(init.showUrgency !== false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [showExitScreen, setShowExitScreen] = useState(false);
+// ─── SwipeRow — defined OUTSIDE App so React never remounts it on re-render ───
+// (defining a component inside another component gives it a new identity every
+//  render, causing React to unmount+remount → subtask inputs lose focus on every
+//  keystroke)
+function SwipeRow({
+  task, rowNum, isLast, isDragging, isDragOver,
+  T, dragId, setDragId, setDragOverId, reorderTasks,
+  expandSubs, setExpandSubs, subInputs, setSubInputs,
+  addSub, deleteSub, toggleSub, toggleTask, setCtxTask, onDelete,
+}) {
+  const [swipeX, setSwipeX] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const isScrolling = useRef(false);
+  const THRESHOLD = 72;
 
-  // v2: onboarding — shown only on first launch
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    try { return !localStorage.getItem('onboardingComplete'); } catch(_) { return true; }
-  });
-  const [onboardStep, setOnboardStep] = useState(0);
+  const onTouchStart = (e) => {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    isScrolling.current = false; setSwiping(false); setSwipeX(0);
+  };
+  const onTouchMove = (e) => {
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = e.touches[0].clientY - startY.current;
+    if (!swiping && Math.abs(dy) > Math.abs(dx)) { isScrolling.current = true; return; }
+    if (isScrolling.current) return;
+    if (Math.abs(dx) > 5) { setSwiping(true); e.preventDefault(); }
+    setSwipeX(Math.max(-THRESHOLD * 1.2, Math.min(THRESHOLD * 1.2, dx)));
+  };
+  const onTouchEnd = () => {
+    if (swipeX < -THRESHOLD)     onDelete(task.id);
+    else if (swipeX > THRESHOLD) toggleTask(task.id);
+    setSwipeX(0); setSwiping(false);
+  };
 
-  // v2: notifications
-  const [notifPermission, setNotifPermission] = useState(() => {
-    try { return ('Notification' in window) ? Notification.permission : 'unsupported'; } catch(_) { return 'unsupported'; }
-  });
+  const ul = task.completed ? "none" : urgLvUtil(task.dueDate);
+  const subtasks = task.subtasks || [];
+  const subDone = subtasks.filter(s => s.completed).length;
+  const isExpanded = !!expandSubs[task.id];
+  const isPinned = task.pinned && !task.completed;
 
-  // v2: subtasks
-  const [expandedSubtasks, setExpandedSubtasks] = useState({});
-  const [newSubtaskText,   setNewSubtaskText]   = useState({});
+  const dueTxColor = (ds) => {
+    const u = urgLvUtil(ds);
+    if (u === "red")    return T.rRedTx;
+    if (u === "orange") return T.rOrgTx;
+    return T.muted;
+  };
 
-  const [editingTaskId, setEditingTaskId] = useState(null);
-  const [editText,      setEditText]      = useState('');
-  const [editDesc,      setEditDesc]      = useState('');
-  const [editDue,       setEditDue]       = useState('');
-  const [editPriority,  setEditPriority]  = useState('normal');
-  const [editRec,       setEditRec]       = useState('none');
-  const [newText,     setNewText]     = useState('');
-  const [newDesc,     setNewDesc]     = useState('');
-  const [newDue,      setNewDue]      = useState('');
-  const [newPriority, setNewPriority] = useState('normal');
-  const [newRec,      setNewRec]      = useState('none');
-  const [showOpts,    setShowOpts]    = useState(false);
-  const [editingTopicId, setEditingTopicId] = useState(null);
-  const [editingUserId,  setEditingUserId]  = useState(null);
-  const [newTopicText,   setNewTopicText]   = useState('');
-  const [newUserName,    setNewUserName]    = useState('');
-  const [showIE,      setShowIE]      = useState(false);
-  const [taskDetails, setTaskDetails] = useState(null);
-  const [showStats,   setShowStats]   = useState(false);
-  const [searchTerm,  setSearchTerm]  = useState('');
-  const [filterUrg,   setFilterUrg]   = useState('all');
-  const [filterPri,   setFilterPri]   = useState('all');
-  const [saveStatus,  setSaveStatus]  = useState('saved');
-  const [history, setHistory] = useState([init.users]);
-  const [histIdx, setHistIdx] = useState(0);
+  const dragStyle = isDragOver
+    ? { borderTop:`2px solid ${T.primary}`, marginTop:-1 }
+    : isDragging
+    ? { opacity:0.4 }
+    : {};
 
-  const editInputRef = useRef(null);
-  const editTopicRef = useRef(null);
-  const editUserRef  = useRef(null);
-  const newTaskRef   = useRef(null);
-  const newTopicRef  = useRef(null);
-  const newUserRef   = useRef(null);
+  const revealLeft  = swipeX < -10;
+  const revealRight = swipeX > 10;
 
-  const T = THEMES[themeName] || THEMES.light;
-  const currentUserData  = currentUser ? users[currentUser] : null;
-  const currentTopicData = currentUser && currentTopic ? users[currentUser]?.topics[currentTopic] : null;
+  const ghostBtn = (extra) => ({ background:"none", border:"none", color:T.primary, fontSize:15, cursor:"pointer", fontWeight:500, ...(extra || {}) });
+  const inpStyle = (extra) => ({ backgroundColor:T.cardAlt, border:"none", color:T.text, borderRadius:12, padding:"12px 14px", fontSize:15, outline:"none", width:"100%", boxSizing:"border-box", ...(extra || {}) });
 
-  const getDays  = (ds) => { if(!ds) return null; const due=new Date(ds); due.setHours(0,0,0,0); const now=new Date(); now.setHours(0,0,0,0); return Math.ceil((due-now)/86400000); };
-  const urgLevel = (ds) => { const d=getDays(ds); if(d===null) return 'none'; if(d<0||d<=1) return 'red'; if(d===2) return 'orange'; return 'none'; };
-  const urgStyle = (lv) => { if(!showUrgency||lv==='none') return {}; if(lv==='red') return {bg:T.urgencyRedBg,border:T.urgencyRedBorder,text:T.urgencyRedText,dot:T.urgencyRedDot}; if(lv==='orange') return {bg:T.urgencyOrangeBg,border:T.urgencyOrangeBorder,text:T.urgencyOrangeText,dot:T.urgencyOrangeDot}; return {}; };
-  const topicUrgLevel = (tasks=[]) => { let m='none'; tasks.forEach(t=>{ if(!t.completed){const u=urgLevel(t.dueDate); if(u==='red') m='red'; else if(u==='orange'&&m!=='red') m='orange';} }); return m; };
-  const userUrgLevel  = (topics={}) => { let m='none'; Object.values(topics).forEach(tp=>{const u=topicUrgLevel(tp.tasks); if(u==='red') m='red'; else if(u==='orange'&&m!=='red') m='orange';}); return m; };
-  const UrgDot = ({level}) => { if(!showUrgency||level==='none') return null; return <span style={{display:'inline-block',width:7,height:7,borderRadius:'50%',backgroundColor:level==='red'?T.urgencyRedDot:T.urgencyOrangeDot,marginLeft:5,verticalAlign:'middle',flexShrink:0}}/>; };
-  const fmtDate = (ds) => { if(!ds) return null; const d=getDays(ds); if(d<0) return `${Math.abs(d)}d overdue`; if(d===0) return 'Today'; if(d===1) return 'Tomorrow'; if(d<=7) return `${d} days`; return new Date(ds).toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
-  const dueDateColor = (ds) => { const u=urgLevel(ds); if(u==='red') return T.urgencyRedText; if(u==='orange') return T.urgencyOrangeText; return T.textMuted; };
-
-  const updateUsers = (next) => { setUsers(next); setSaveStatus('saving'); const h=history.slice(0,histIdx+1); h.push(next); setHistory(h); setHistIdx(h.length-1); };
-  const undo = () => { if(histIdx>0){const ni=histIdx-1; setHistIdx(ni); setUsers(history[ni]);} };
-  const redo = () => { if(histIdx<history.length-1){const ni=histIdx+1; setHistIdx(ni); setUsers(history[ni]);} };
-
-  // ── All useMemo hooks (before conditional returns) ─────────────────────────
-  const debouncedSearch = useMemo(()=>debounce((v)=>setSearchTerm(v),250),[]);
-  const filteredTasks = useMemo(()=>{ if(!currentTopicData?.tasks) return []; return currentTopicData.tasks.filter(t=>{ const matchS=!searchTerm||t.text.toLowerCase().includes(searchTerm.toLowerCase())||t.description?.toLowerCase().includes(searchTerm.toLowerCase()); const u=urgLevel(t.dueDate); const matchU=filterUrg==='all'||(filterUrg==='urgent'&&u!=='none')||(filterUrg==='normal'&&u==='none'); const matchP=filterPri==='all'||t.priority===filterPri; return matchS&&matchU&&matchP; }); },[currentTopicData,searchTerm,filterUrg,filterPri,showUrgency]);
-  const stats = useMemo(()=>{ if(!currentTopicData?.tasks) return {total:0,done:0,urgent:0,todayDone:0}; const tasks=currentTopicData.tasks,today=new Date().toDateString(); return {total:tasks.length,done:tasks.filter(t=>t.completed).length,urgent:tasks.filter(t=>!t.completed&&urgLevel(t.dueDate)==='red').length,todayDone:tasks.filter(t=>t.completed&&t.completedAt&&new Date(t.completedAt).toDateString()===today).length}; },[currentTopicData,showUrgency]);
-  const allTasksWithDates = useMemo(()=>{ const r=[]; Object.values(users).forEach(u=>Object.values(u.topics).forEach(tp=>tp.tasks.forEach(t=>{ if(t.dueDate&&!t.completed) r.push({...t,userName:u.name,userId:u.id,topicName:tp.name,topicId:tp.id}); }))); return r; },[users]);
-
-  // ── All useEffect hooks (before conditional returns) ───────────────────────
-  useEffect(()=>{ setSaveStatus('saving'); const t=setTimeout(()=>{ try{ localStorage.setItem('dtwv4',JSON.stringify({users,currentUser,currentTopic,themeName,showUrgency})); setSaveStatus('saved'); }catch(_){setSaveStatus('error');} },300); return ()=>clearTimeout(t); },[users,currentUser,currentTopic,themeName,showUrgency]);
-
-  useEffect(()=>{
-    if(notifPermission!=='granted') return;
-    const today=new Date(); today.setHours(0,0,0,0);
-    Object.values(users).forEach(user=>Object.values(user.topics).forEach(topic=>topic.tasks.forEach(task=>{
-      if(task.completed||!task.dueDate) return;
-      const due=new Date(task.dueDate); due.setHours(0,0,0,0);
-      const diff=Math.ceil((due-today)/86400000);
-      if(diff>1) return;
-      const todayStr=today.toISOString().split('T')[0];
-      const key=`notif-${task.id}-${task.dueDate}-${todayStr}`;
-      if(localStorage.getItem(key)) return;
-      localStorage.setItem(key,'1');
-      const label=diff<0?`${Math.abs(diff)}d overdue`:diff===0?'Due today':'Due tomorrow';
-      const subs=task.subtasks||[];
-      const subLine=subs.length>0?subs.map(s=>(s.completed?'✓ ':'○ ')+s.text).join('  '):'';
-      const body=subLine?`${subLine}\n${label}`:label;
-      try{ new Notification(`📋 ${task.text}`,{body,icon:'/Tasks-Keeper/icons/icon-192.png',tag:key}); }catch(_){}
-    })));
-  },[notifPermission]);
-
-  useEffect(()=>{ const h=(e)=>{ if(showIE&&!e.target.closest('.ie-popup')) setShowIE(false); if(taskDetails&&!e.target.closest('.td-popup')) setTaskDetails(null); if(editingTaskId&&!e.target.closest('.edit-task')) setEditingTaskId(null); }; document.addEventListener('mousedown',h); return ()=>document.removeEventListener('mousedown',h); },[showIE,taskDetails,editingTaskId]);
-  useEffect(()=>{ if(editingTaskId&&editInputRef.current){editInputRef.current.focus();editInputRef.current.select();} },[editingTaskId]);
-  useEffect(()=>{ if(editingTopicId&&editTopicRef.current){editTopicRef.current.focus();editTopicRef.current.select();} },[editingTopicId]);
-  useEffect(()=>{ if(editingUserId&&editUserRef.current){editUserRef.current.focus();editUserRef.current.select();} },[editingUserId]);
-  useEffect(()=>{ const h=(e)=>{ if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key==='z'){e.preventDefault();undo();} if((e.metaKey||e.ctrlKey)&&e.shiftKey&&e.key==='z'){e.preventDefault();redo();} if(e.key==='Escape'){if(editingTaskId)setEditingTaskId(null);else if(taskDetails)setTaskDetails(null);else if(showSettings)setShowSettings(false);else if(showCalendar)setShowCalendar(false);} }; document.addEventListener('keydown',h); return ()=>document.removeEventListener('keydown',h); },[editingTaskId,taskDetails,showSettings,showCalendar,histIdx,history]);
-
-  const recLabels = {none:'No repeat',daily:'Every day',weekly:'Every week',monthly:'Every month',yearly:'Every year'};
-  const nextDue = (ds,rec) => { if(!ds||!rec||rec==='none') return null; const d=new Date(ds); if(rec==='daily') d.setDate(d.getDate()+1); if(rec==='weekly') d.setDate(d.getDate()+7); if(rec==='monthly') d.setMonth(d.getMonth()+1); if(rec==='yearly') d.setFullYear(d.getFullYear()+1); return d.toISOString().split('T')[0]; };
-
-  const addTask    = () => { const text=newText.trim(); if(!text||!currentUser||!currentTopic) return; const task={id:Date.now(),text,description:newDesc.trim(),completed:false,dueDate:newDue||null,priority:newPriority,recurrence:newRec==='none'?null:newRec,createdAt:new Date().toISOString(),completedAt:null,subtasks:[]}; const n=JSON.parse(JSON.stringify(users)); n[currentUser].topics[currentTopic].tasks.push(task); updateUsers(n); setNewText(''); setNewDesc(''); setNewDue(''); setNewPriority('normal'); setNewRec('none'); setShowOpts(false); };
-  const toggleTask = (id) => { const task=currentTopicData.tasks.find(t=>t.id===id); if(!task) return; const n=JSON.parse(JSON.stringify(users)); const idx=n[currentUser].topics[currentTopic].tasks.findIndex(t=>t.id===id); const upd={...task,completed:!task.completed,completedAt:!task.completed?new Date().toISOString():null}; n[currentUser].topics[currentTopic].tasks[idx]=upd; if(upd.completed&&upd.recurrence) n[currentUser].topics[currentTopic].tasks.push({...upd,id:Date.now()+1,completed:false,dueDate:nextDue(upd.dueDate,upd.recurrence),createdAt:new Date().toISOString(),completedAt:null,subtasks:[]}); updateUsers(n); };
-  const deleteTask = (id) => { const n=JSON.parse(JSON.stringify(users)); n[currentUser].topics[currentTopic].tasks=n[currentUser].topics[currentTopic].tasks.filter(t=>t.id!==id); updateUsers(n); if(editingTaskId===id) setEditingTaskId(null); };
-  const clearAll   = () => { const n=JSON.parse(JSON.stringify(users)); n[currentUser].topics[currentTopic].tasks=[]; updateUsers(n); setEditingTaskId(null); };
-  const saveEdit   = (id) => { const n=JSON.parse(JSON.stringify(users)); const idx=n[currentUser].topics[currentTopic].tasks.findIndex(t=>t.id===id); if(idx!==-1){n[currentUser].topics[currentTopic].tasks[idx]={...n[currentUser].topics[currentTopic].tasks[idx],text:editText.trim()||n[currentUser].topics[currentTopic].tasks[idx].text,description:editDesc,dueDate:editDue||null,priority:editPriority,recurrence:editRec==='none'?null:editRec};updateUsers(n);} setEditingTaskId(null); };
-  const startEdit  = (task) => { setEditingTaskId(task.id); setEditText(task.text); setEditDesc(task.description||''); setEditDue(task.dueDate||''); setEditPriority(task.priority||'normal'); setEditRec(task.recurrence||'none'); };
-
-  const addSubtask    = (taskId,text) => { const trimmed=text.trim(); if(!trimmed) return; const n=JSON.parse(JSON.stringify(users)); const task=n[currentUser].topics[currentTopic].tasks.find(t=>t.id===taskId); if(!task) return; if(!task.subtasks) task.subtasks=[]; task.subtasks.push({id:Date.now(),text:trimmed,completed:false}); updateUsers(n); setNewSubtaskText(prev=>({...prev,[taskId]:''})); };
-  const toggleSubtask = (taskId,subId) => { const n=JSON.parse(JSON.stringify(users)); const task=n[currentUser].topics[currentTopic].tasks.find(t=>t.id===taskId); if(!task?.subtasks) return; const sub=task.subtasks.find(s=>s.id===subId); if(sub) sub.completed=!sub.completed; updateUsers(n); };
-  const deleteSubtask = (taskId,subId) => { const n=JSON.parse(JSON.stringify(users)); const task=n[currentUser].topics[currentTopic].tasks.find(t=>t.id===taskId); if(!task?.subtasks) return; task.subtasks=task.subtasks.filter(s=>s.id!==subId); updateUsers(n); };
-
-  const addUser      = () => { const name=newUserName.trim(); if(!name) return; const id=name.toLowerCase().replace(/[^a-z0-9]/g,'-'); if(users[id]){alert(`User "${users[id].name}" already exists.`);return;} const n=JSON.parse(JSON.stringify(users)); n[id]={id,name,topics:{}}; updateUsers(n); setNewUserName(''); };
-  const deleteUser   = (id) => { if(Object.keys(users).length<=1) return; const n=JSON.parse(JSON.stringify(users)); delete n[id]; updateUsers(n); if(currentUser===id){setCurrentUser(null);setCurrentTopic(null);} };
-  const saveUserName = (id,name) => { if(name.trim()){const n=JSON.parse(JSON.stringify(users)); n[id].name=name.trim(); updateUsers(n);} setEditingUserId(null); };
-  const addTopic     = () => { const name=newTopicText.trim(); if(!name||!currentUser) return; const id=Date.now().toString(); const n=JSON.parse(JSON.stringify(users)); n[currentUser].topics[id]={id,name,tasks:[]}; updateUsers(n); setNewTopicText(''); };
-  const deleteTopic  = (id) => { const n=JSON.parse(JSON.stringify(users)); delete n[currentUser].topics[id]; updateUsers(n); if(currentTopic===id) setCurrentTopic(null); };
-  const saveTopicName= (id,name) => { if(name.trim()){const n=JSON.parse(JSON.stringify(users)); n[currentUser].topics[id].name=name.trim(); updateUsers(n);} setEditingTopicId(null); };
-
-  const requestNotifPermission = async () => { if(!('Notification' in window)){setNotifPermission('unsupported');return;} try{const r=await Notification.requestPermission(); setNotifPermission(r);}catch(_){} };
-
-  const writeJsonFile = (filename,payload) => { const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); };
-  const buildExportPayload = (usersToExport,type) => ({version:'4.0',exportType:type,exportDate:new Date().toISOString(),themeName,showUrgency,users:usersToExport});
-  const doFullBackup  = () => { writeJsonFile(`tasks-full-backup-${new Date().toISOString().split('T')[0]}.json`,buildExportPayload(users,'full')); setShowIE(false); };
-  const doExportUser  = (userId) => { const user=users[userId]; if(!user) return; writeJsonFile(`tasks-${user.name.toLowerCase().replace(/[^a-z0-9]/g,'-')}-${new Date().toISOString().split('T')[0]}.json`,buildExportPayload({[userId]:user},'user')); setShowIE(false); };
-  const doImport = (e) => { const file=e.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=(ev)=>{ try{ const data=JSON.parse(ev.target.result); if(!data||data.version!=='4.0'||typeof data.users!=='object'){alert('Invalid backup file (version 4.0 required).');return;} const merged=JSON.parse(JSON.stringify(users)); Object.keys(data.users).forEach(id=>{ merged[id]=JSON.parse(JSON.stringify(data.users[id])); Object.values(merged[id].topics).forEach(tp=>tp.tasks.forEach(t=>{if(!t.subtasks)t.subtasks=[];})); }); updateUsers(merged); if(data.exportType==='full'&&data.themeName&&THEMES[data.themeName]) setThemeName(data.themeName); }catch(_){alert('Could not read file.');} }; reader.readAsText(file); e.target.value=''; setShowIE(false); };
-
-  const exportTaskToCalendar = (task) => { if(!task.dueDate) return; const fmtDay=(ds)=>ds.replace(/-/g,''); const fmtLocal=(ds,hh,mm,ss)=>`${fmtDay(ds)}T${String(hh).padStart(2,'0')}${String(mm).padStart(2,'0')}${String(ss).padStart(2,'0')}`; const now=new Date(),dtstamp=now.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z'; const uid=`${task.id}-${Date.now()}@dailytasks-pwa`; const icalPriority={urgent:'1',high:'2',normal:'5',low:'9'}; const desc=[task.description&&`Notes: ${task.description}`,`Priority: ${task.priority}`,task.recurrence&&`Repeats: ${task.recurrence}`,'Added from Daily Tasks PWA'].filter(Boolean).join('\\n'); const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Daily Tasks PWA//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',`UID:${uid}`,`DTSTAMP:${dtstamp}`,`DTSTART:${fmtLocal(task.dueDate,9,0,0)}`,`DTEND:${fmtLocal(task.dueDate,9,30,0)}`,`SUMMARY:${task.text}`,`DESCRIPTION:${desc}`,`PRIORITY:${icalPriority[task.priority]||'5'}`,'BEGIN:VALARM','ACTION:DISPLAY',`DESCRIPTION:Reminder – ${task.text}`,'TRIGGER:-PT15M','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n'); const blob=new Blob([lines],{type:'text/calendar;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`${task.text.toLowerCase().replace(/[^a-z0-9]/g,'-').slice(0,40)}.ics`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); };
-
-  const datePriorityColor = (ds) => { const tasks=allTasksWithDates.filter(t=>t.dueDate===ds); if(!tasks.length) return null; const has=(p)=>tasks.some(t=>t.priority===p); if(has('urgent')||has('high')) return {bg:T.urgencyRedBg,border:T.urgencyRedBorder,text:T.urgencyRedText,dot:T.urgencyRedDot}; if(has('normal')) return {bg:T.primary+'22',border:T.primary,text:T.primary,dot:T.primary}; return {bg:T.urgencyOrangeBg,border:T.urgencyOrangeBorder,text:T.urgencyOrangeText,dot:T.urgencyOrangeDot}; };
-
-  const card    = {backgroundColor:T.bg,border:`1px solid ${T.border}`,borderRadius:14};
-  const pageCard= {...card,width:'100%',overflow:'hidden',display:'flex',flexDirection:'column'};
-  const surf    = {backgroundColor:T.surface,border:`1px solid ${T.border}`,borderRadius:9};
-  const inp     = {backgroundColor:T.inputBg,border:`1px solid ${T.inputBorder}`,color:T.text,borderRadius:8,padding:'7px 11px',fontSize:13,outline:'none',width:'100%',boxSizing:'border-box'};
-  const hdr     = {backgroundColor:T.headerBg,padding:'11px 14px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0};
-  const iconBtn = (extra={}) => ({background:'rgba(255,255,255,0.13)',border:'none',borderRadius:7,padding:'5px 7px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',...extra});
-  const primBtn = (extra={}) => ({backgroundColor:T.primary,color:'#fff',border:'none',borderRadius:8,padding:'7px 13px',cursor:'pointer',fontSize:13,fontWeight:600,display:'flex',alignItems:'center',justifyContent:'center',gap:4,...extra});
-
-  const SaveDot  = () => { const c=saveStatus==='saving'?'#FBBF24':saveStatus==='error'?'#EF4444':'#10B981'; return <span style={{width:7,height:7,borderRadius:'50%',backgroundColor:c,display:'inline-block',flexShrink:0}} title={saveStatus}/>; };
-  const CloseBtn = () => { const isPWA=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true; return <button onClick={()=>isPWA?setShowExitScreen(true):window.close()} style={iconBtn({background:'rgba(239,68,68,0.85)'})} title="Exit"><X size={14} color="#fff"/></button>; };
-  const UndoRedo = () => <>{histIdx>0&&<button onClick={undo} style={iconBtn()} title="Undo"><Undo2 size={14} color={T.headerText}/></button>}{histIdx<history.length-1&&<button onClick={redo} style={iconBtn()} title="Redo"><Redo2 size={14} color={T.headerText}/></button>}</>;
-  const ExitScreen = () => !showExitScreen?null:(<div style={{position:'fixed',inset:0,zIndex:9999,backgroundColor:T.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:20,padding:32}}><div style={{fontSize:56}}>📱</div><div style={{color:T.text,fontSize:22,fontWeight:700,textAlign:'center'}}>Ready to leave?</div><div style={{color:T.textMuted,fontSize:14,textAlign:'center',lineHeight:1.7,maxWidth:260}}>Swipe up from the bottom of the screen, or press your Home button to exit.</div><div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}><div style={{width:40,height:5,borderRadius:3,backgroundColor:T.textMuted,opacity:.5}}/><div style={{color:T.textMuted,fontSize:11}}>swipe up</div></div><button onClick={()=>setShowExitScreen(false)} style={{...primBtn(),marginTop:16,padding:'12px 32px',fontSize:15,borderRadius:12}}>Go Back</button></div>);
-
-  // ═══ ALL HOOKS ABOVE — conditional returns below ═══════════════════════════
-
-  // ── ONBOARDING ─────────────────────────────────────────────────────────────
-  if (showOnboarding) {
-    const done = () => { try{localStorage.setItem('onboardingComplete','1');}catch(_){} setShowOnboarding(false); };
-    const STEPS = [
-      { icon:'✅', title:'Welcome to Daily Tasks', subtitle:'Your personal task manager — built for focus and clarity.',
-        body:<div style={{display:'flex',flexDirection:'column',gap:12}}>{[['📁','Multiple Users','Manage tasks for yourself and others'],['📂','Topics','Group tasks by area — Work, Personal, Projects'],['📋','Smart Tasks','Priorities, due dates, recurrence & subtasks']].map(([ico,t,d])=><div key={t} style={{display:'flex',gap:12,alignItems:'flex-start',padding:'10px 14px',backgroundColor:T.surface,borderRadius:10,border:`1px solid ${T.border}`}}><span style={{fontSize:20,flexShrink:0}}>{ico}</span><div><div style={{color:T.text,fontWeight:600,fontSize:13}}>{t}</div><div style={{color:T.textMuted,fontSize:12,marginTop:2}}>{d}</div></div></div>)}</div>,
-        primary:{label:'Get Started →',action:()=>setOnboardStep(1)},secondary:null,back:null },
-      { icon:'🗂️', title:'How It Works', subtitle:'Three simple levels keep everything organised.',
-        body:<div style={{display:'flex',flexDirection:'column',gap:8}}>{[{c:'#3B82F6',l:'USER',e:'Alex',d:'A person whose tasks you manage'},{c:'#8B5CF6',l:'TOPIC',e:'Work Tasks',d:'A group of related tasks'},{c:'#10B981',l:'TASK',e:'Q4 Report',d:'A single action with priority & due date'}].map(({c,l,e,d},i)=><div key={l}><div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',backgroundColor:T.surface,borderRadius:10,border:`1px solid ${T.border}`}}><div style={{width:36,height:36,borderRadius:8,backgroundColor:c+'22',border:`2px solid ${c}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{color:c,fontSize:10,fontWeight:800}}>{l}</span></div><div><div style={{color:T.text,fontWeight:600,fontSize:13}}>"{e}"</div><div style={{color:T.textMuted,fontSize:12}}>{d}</div></div></div>{i<2&&<div style={{textAlign:'center',color:T.textMuted,fontSize:16,margin:'2px 0'}}>↓</div>}</div>)}</div>,
-        primary:{label:'Next →',action:()=>setOnboardStep(2)},secondary:{label:'← Back',action:()=>setOnboardStep(0)},back:null },
-      { icon:'🔔', title:'Stay on Top of Deadlines', subtitle:'Get notified when tasks are due — on every app open.',
-        body:<div style={{display:'flex',flexDirection:'column',gap:12}}>{notifPermission==='granted'?(<div style={{padding:'16px 14px',backgroundColor:T.success+'22',border:`1.5px solid ${T.success}`,borderRadius:10,textAlign:'center'}}><div style={{fontSize:28,marginBottom:6}}>✅</div><div style={{color:T.success,fontWeight:700,fontSize:14}}>Notifications enabled!</div><div style={{color:T.textMuted,fontSize:12,marginTop:4}}>You'll be alerted for overdue and upcoming tasks.</div></div>):(<><div style={{padding:14,backgroundColor:T.surface,borderRadius:10,border:`1px solid ${T.border}`,display:'flex',flexDirection:'column',gap:10}}>{[['🔴','Overdue, today & tomorrow','Highlighted in red — act immediately'],['🟠','2 days remaining','Highlighted in orange — plan ahead']].map(([dot,t,d])=><div key={t} style={{display:'flex',alignItems:'center',gap:10}}><span style={{fontSize:16}}>{dot}</span><div><span style={{color:T.text,fontSize:12,fontWeight:600}}>{t}</span><span style={{color:T.textMuted,fontSize:12}}> — {d}</span></div></div>)}</div><div style={{color:T.textMuted,fontSize:11,textAlign:'center',lineHeight:1.6}}>Fires on app open. No account or backend required.</div></>)}</div>,
-        primary:notifPermission==='granted'?{label:'Enter App →',action:done}:{label:'Enable Notifications',action:async()=>{await requestNotifPermission();done();}},
-        secondary:{label:'Skip for now',action:done},back:{label:'← Back',action:()=>setOnboardStep(1)} },
-    ];
-    const step=STEPS[onboardStep];
-    return (
-      <div style={pageCard}>
-        <div style={{display:'flex',justifyContent:'center',gap:6,padding:'20px 20px 0'}}>{STEPS.map((_,i)=><div key={i} style={{width:i===onboardStep?22:7,height:7,borderRadius:4,backgroundColor:i===onboardStep?T.primary:T.border,transition:'all .25s'}}/>)}</div>
-        <div style={{padding:'24px 20px 8px',display:'flex',flexDirection:'column',gap:16}}><div style={{textAlign:'center'}}><div style={{fontSize:52,marginBottom:8}}>{step.icon}</div><div style={{color:T.text,fontSize:19,fontWeight:800,marginBottom:6}}>{step.title}</div><div style={{color:T.textMuted,fontSize:13,lineHeight:1.6}}>{step.subtitle}</div></div>{step.body}</div>
-        <div style={{padding:'8px 20px 24px',display:'flex',flexDirection:'column',gap:8}}>
-          <button onClick={step.primary.action} style={{...primBtn(),padding:13,fontSize:14,borderRadius:10,width:'100%'}}>{step.primary.label}</button>
-          {step.secondary&&<button onClick={step.secondary.action} style={{background:'none',border:'none',color:T.textMuted,fontSize:13,cursor:'pointer',padding:6}}>{step.secondary.label}</button>}
-          {step.back&&<button onClick={step.back.action} style={{background:'none',border:'none',color:T.textMuted,fontSize:13,cursor:'pointer',padding:6}}>{step.back.label}</button>}
-        </div>
-      </div>
-    );
-  }
-
-  // ── CALENDAR ───────────────────────────────────────────────────────────────
-  if (showCalendar) {
-    const CalendarInner = () => {
-      const today=new Date(),todayStr=today.toISOString().split('T')[0];
-      const [calView,setCalView]=useState('agenda');
-      const [calYear,setCalYear]=useState(today.getFullYear());
-      const [calMonth,setCalMonth]=useState(today.getMonth());
-      const [selectedDate,setSelectedDate]=useState(todayStr);
-      const stripRef=useRef(null);
-      const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-      const agendaDays=useMemo(()=>{const days=[];for(let i=-7;i<54;i++){const dt=new Date(today);dt.setDate(dt.getDate()+i);const ds=dt.toISOString().split('T')[0];days.push({ds,dt,tasks:allTasksWithDates.filter(t=>t.dueDate===ds)});}return days;},[]);
-      useEffect(()=>{if(stripRef.current){const el=stripRef.current.querySelector('[data-today="true"]');if(el)el.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});}},[]);
-      const agendaLbl=(dt,ds)=>{const diff=Math.ceil((new Date(ds)-new Date(todayStr))/86400000);return{sub:diff===0?'Today':diff===1?'Tomorrow':diff===-1?'Yesterday':dt.toLocaleDateString('en-US',{weekday:'long'}),isToday:diff===0,isPast:diff<0};};
-      const PriBadge=({p})=>{const m={urgent:{bg:T.urgencyRedBg,text:T.urgencyRedText,l:'Urgent'},high:{bg:T.urgencyRedBg,text:T.urgencyRedText,l:'High'},normal:{bg:T.primary+'22',text:T.primary,l:'Normal'},low:{bg:T.urgencyOrangeBg,text:T.urgencyOrangeText,l:'Low'}};const s=m[p]||m.normal;return <span style={{backgroundColor:s.bg,color:s.text,fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:20,textTransform:'uppercase',letterSpacing:.4,whiteSpace:'nowrap'}}>{s.l}</span>;};
-      const firstDay=new Date(calYear,calMonth,1).getDay(),dim=new Date(calYear,calMonth+1,0).getDate();
-      const cells=[...Array(firstDay).fill(null),...Array.from({length:dim},(_,i)=>i+1)];
-      const toDS=(day)=>`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      const prevM=()=>{if(calMonth===0){setCalYear(y=>y-1);setCalMonth(11);}else setCalMonth(m=>m-1);setSelectedDate(null);};
-      const nextM=()=>{if(calMonth===11){setCalYear(y=>y+1);setCalMonth(0);}else setCalMonth(m=>m+1);setSelectedDate(null);};
-      return (
-        <div style={pageCard}>
-          <ExitScreen/>
-          <div style={hdr}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}><button onClick={()=>setShowCalendar(false)} style={iconBtn()}><ArrowLeft size={14} color={T.headerText}/></button><div><div style={{color:T.headerText,fontWeight:700,fontSize:14}}>Calendar</div><div style={{color:T.headerText,opacity:.7,fontSize:11}}>All tasks at a glance</div></div></div>
-            <div style={{display:'flex',gap:6,alignItems:'center'}}>
-              <div style={{display:'flex',backgroundColor:'rgba(255,255,255,0.12)',borderRadius:20,padding:2,gap:2}}>{[['agenda','Agenda'],['month','Month']].map(([v,l])=><button key={v} onClick={()=>setCalView(v)} style={{padding:'4px 12px',borderRadius:18,border:'none',backgroundColor:calView===v?'#fff':'transparent',color:calView===v?'#111827':T.headerText,fontSize:12,fontWeight:600,cursor:'pointer',transition:'all .15s'}}>{l}</button>)}</div>
-              <SaveDot/><CloseBtn/>
+  return (
+    <div style={{ borderBottom:isLast ? "none" : `0.5px solid ${T.sep}`, ...dragStyle }}>
+      <div style={{ position:"relative", overflow:"hidden" }}>
+        {revealRight && (
+          <div style={{ position:"absolute", left:0, top:0, bottom:0, width:Math.min(swipeX, THRESHOLD), backgroundColor:T.success, display:"flex", alignItems:"center", paddingLeft:16 }}>
+            <Check size={18} color="#fff"/>
+          </div>
+        )}
+        {revealLeft && (
+          <div style={{ position:"absolute", right:0, top:0, bottom:0, width:Math.min(-swipeX, THRESHOLD), backgroundColor:T.danger, display:"flex", alignItems:"center", justifyContent:"flex-end", paddingRight:16 }}>
+            <Trash2 size={18} color="#fff"/>
+          </div>
+        )}
+        <div
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onTouchCancel={() => { setSwipeX(0); setSwiping(false); }}
+          draggable={!task.completed}
+          onDragStart={() => setDragId(task.id)}
+          onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+          onDragOver={e => { e.preventDefault(); setDragOverId(task.id); }}
+          onDrop={() => { if (dragId && dragId !== task.id) reorderTasks(dragId, task.id); }}
+          style={{ display:"flex", alignItems:"center", padding:"13px 16px", gap:10, cursor:"grab",
+            backgroundColor:isPinned ? T.pinBg : T.card,
+            transform:`translateX(${swipeX}px)`,
+            transition:swiping ? "none" : "transform .2s ease",
+            position:"relative", zIndex:1 }}>
+          {!task.completed && (
+            <span style={{ color:T.hint, flexShrink:0, cursor:"grab", touchAction:"none" }}><GripVertical size={14}/></span>
+          )}
+          <span style={{ fontSize:12, color:T.hint, width:22, textAlign:"right", flexShrink:0, fontVariantNumeric:"tabular-nums" }}>
+            {String(rowNum).padStart(2, "0")}
+          </span>
+          <button onClick={() => toggleTask(task.id)}
+            style={{ flexShrink:0, width:22, height:22, borderRadius:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0,
+              border:`2px solid ${task.completed ? T.success : T.sepHard}`,
+              backgroundColor:task.completed ? T.success : "transparent" }}>
+            {task.completed && <Check size={12} color="#fff"/>}
+          </button>
+          {isPinned && <Star size={12} color={T.star} fill={T.star} style={{ flexShrink:0 }}/>}
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:15, fontWeight:isPinned ? 600 : 400, wordBreak:"break-word", lineHeight:1.3,
+              color:task.completed ? T.hint : T.text,
+              textDecoration:task.completed ? "line-through" : "none" }}>
+              {task.text}
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3, flexWrap:"wrap" }}>
+              {task.dueDate && <span style={{ fontSize:12, color:dueTxColor(task.dueDate), fontWeight:500 }}>{fmtDateUtil(task.dueDate)}</span>}
+              {task.dueTime && task.dueDate && (
+                <span style={{ display:"flex", alignItems:"center", gap:2, fontSize:12, color:T.primary, fontWeight:500 }}>
+                  <Clock size={9}/>{fmtTimeUtil(task.dueTime)}
+                </span>
+              )}
+              {task.estimate && (
+                <span style={{ display:"flex", alignItems:"center", gap:2, fontSize:11, color:T.muted, backgroundColor:T.cardAlt, borderRadius:6, padding:"1px 6px" }}>
+                  <Timer size={9}/>{EST_LABELS[task.estimate]}
+                </span>
+              )}
+              {task.recurrence && <Repeat size={9} color={T.muted}/>}
+              {subtasks.length > 0 && (
+                <span style={{ fontSize:11, fontWeight:500, color:subDone===subtasks.length ? T.success : T.muted }}>({subDone}/{subtasks.length})</span>
+              )}
             </div>
           </div>
-          {calView==='agenda'&&(<>
-            <div style={{backgroundColor:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-              <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',padding:'10px 14px 0'}}><span style={{color:T.text,fontWeight:700,fontSize:20}}>{today.toLocaleDateString('en-US',{month:'long'})}</span><span style={{color:T.textMuted,fontSize:13}}>{today.getFullYear()}</span></div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',padding:'6px 8px 0',gap:2}}>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(n=><div key={n} style={{textAlign:'center',fontSize:10,fontWeight:700,color:T.textMuted,textTransform:'uppercase',letterSpacing:.4}}>{n}</div>)}</div>
-              <div ref={stripRef} style={{display:'flex',overflowX:'auto',padding:'6px 8px 10px',gap:4,scrollbarWidth:'none'}}>
-                {agendaDays.map(({ds,dt})=>{const pc=datePriorityColor(ds),isTod=ds===todayStr,isSel=ds===selectedDate,cnt=allTasksWithDates.filter(t=>t.dueDate===ds).length;return(<button key={ds} data-today={isTod?'true':'false'} onClick={()=>setSelectedDate(ds)} style={{flexShrink:0,width:44,display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'6px 0 4px',borderRadius:12,border:'none',backgroundColor:isSel?T.primary:isTod?T.primary+'33':pc?pc.bg:'transparent',cursor:'pointer',outline:'none'}}><span style={{fontSize:10,fontWeight:600,color:isSel?'#fff':isTod?T.primary:pc?pc.text:T.textMuted}}>{dt.toLocaleDateString('en-US',{weekday:'short'}).charAt(0)}</span><div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',backgroundColor:isSel||isTod?T.primary:'transparent',border:isSel||isTod?'none':`2px solid ${pc?pc.border:'transparent'}`}}><span style={{fontSize:15,fontWeight:isTod||isSel?800:500,color:isSel||isTod?'#fff':pc?pc.text:T.text}}>{dt.getDate()}</span></div>{cnt>0&&<span style={{width:6,height:6,borderRadius:'50%',backgroundColor:isSel?'#fff':pc?pc.dot:T.textMuted,flexShrink:0}}/>}</button>);})}
-              </div>
-            </div>
-            <div style={{flex:1,overflowY:'auto'}}>{agendaDays.filter(d=>d.tasks.length>0).length===0?<div style={{textAlign:'center',padding:'48px 24px',color:T.textMuted,fontSize:13}}>No upcoming tasks with due dates</div>:agendaDays.map(({ds,dt,tasks})=>{if(!tasks.length) return null;const{sub,isToday,isPast}=agendaLbl(dt,ds);return(<div key={ds}><div style={{display:'flex',alignItems:'baseline',gap:10,padding:'14px 16px 6px',borderBottom:`1px solid ${T.border}`}}><span style={{fontSize:22,fontWeight:800,color:isToday?T.primary:isPast?T.textMuted:T.text,minWidth:36}}>{dt.getDate()}</span><div><span style={{fontSize:14,fontWeight:700,color:isToday?T.primary:isPast?T.textMuted:T.text}}>{dt.toLocaleDateString('en-US',{month:'short'})}</span><span style={{fontSize:12,color:isToday?T.primary:T.textMuted,marginLeft:6}}>{sub}</span></div><span style={{marginLeft:'auto',fontSize:11,color:T.textMuted}}>{tasks.length} task{tasks.length>1?'s':''}</span></div><div style={{padding:'6px 12px 4px',display:'flex',flexDirection:'column',gap:6}}>{tasks.map(task=><div key={`${task.userId}-${task.id}`} style={{display:'flex',gap:10,padding:'10px 12px',borderRadius:10,backgroundColor:T.surface,border:`1px solid ${T.border}`}}><div style={{width:3,borderRadius:3,flexShrink:0,alignSelf:'stretch',backgroundColor:task.priority==='urgent'||task.priority==='high'?T.urgencyRedDot:task.priority==='normal'?T.primary:T.urgencyOrangeDot}}/><div style={{flex:1,minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:3,marginBottom:3}}><MapPin size={9} color={T.textMuted}/><span style={{fontSize:10,color:T.textMuted}}>{task.userName}</span><ChevronRight size={8} color={T.textMuted}/><span style={{fontSize:10,color:T.textMuted}}>{task.topicName}</span></div><div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:6}}><span style={{color:T.text,fontSize:13,fontWeight:600,lineHeight:1.4,flex:1,wordBreak:'break-word'}}>{task.text}</span><PriBadge p={task.priority}/></div>{task.description&&<div style={{color:T.textMuted,fontSize:11,marginTop:3,lineHeight:1.5}}>{task.description}</div>}{task.recurrence&&<div style={{display:'flex',alignItems:'center',gap:3,marginTop:4}}><Repeat size={9} color={T.textMuted}/><span style={{fontSize:10,color:T.textMuted}}>{task.recurrence.charAt(0).toUpperCase()+task.recurrence.slice(1)} recurring</span></div>}</div></div>)}</div></div>);})}</div>
-          </>)}
-          {calView==='month'&&(<>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',backgroundColor:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0}}><button onClick={prevM} style={{background:'none',border:'none',cursor:'pointer',padding:'4px 8px'}}><ChevronLeft size={20} color={T.text}/></button><span style={{color:T.text,fontWeight:700,fontSize:16}}>{MONTHS[calMonth]} {calYear}</span><button onClick={nextM} style={{background:'none',border:'none',cursor:'pointer',padding:'4px 8px'}}><ChevronRight size={20} color={T.text}/></button></div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',backgroundColor:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>{['S','M','T','W','T','F','S'].map((d,i)=><div key={i} style={{textAlign:'center',padding:'6px 0',fontSize:11,fontWeight:700,color:T.textMuted}}>{d}</div>)}</div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,padding:8,flexShrink:0,backgroundColor:T.bg}}>{cells.map((day,idx)=>{if(!day) return <div key={`e-${idx}`}/>;const ds=toDS(day),pc=datePriorityColor(ds),isTod=ds===todayStr,isSel=ds===selectedDate,cnt=allTasksWithDates.filter(t=>t.dueDate===ds).length;return(<button key={ds} onClick={()=>setSelectedDate(isSel?null:ds)} style={{position:'relative',aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:10,border:isSel?`2px solid ${T.primary}`:pc?`1.5px solid ${pc.border}`:'1.5px solid transparent',backgroundColor:isSel?T.primary+'33':pc?pc.bg:'transparent',cursor:'pointer',outline:'none',padding:2}}>{isTod&&<div style={{position:'absolute',inset:2,borderRadius:8,border:`2px solid ${T.primary}`,opacity:.5,pointerEvents:'none'}}/>}<span style={{fontSize:14,fontWeight:isTod?800:500,color:pc?pc.text:T.text,lineHeight:1}}>{day}</span>{cnt>0&&<span style={{fontSize:9,fontWeight:700,color:pc?pc.text:T.textMuted,marginTop:2,lineHeight:1}}>{cnt} task{cnt>1?'s':''}</span>}</button>);})}</div>
-            <div style={{display:'flex',gap:12,alignItems:'center',padding:'8px 14px',backgroundColor:T.surface,borderTop:`1px solid ${T.border}`,borderBottom:`1px solid ${T.border}`,flexShrink:0,flexWrap:'wrap'}}><span style={{fontSize:10,fontWeight:700,color:T.textMuted,textTransform:'uppercase',letterSpacing:.4}}>Legend:</span>{[{c:T.urgencyRedDot,l:'Urgent/High'},{c:T.primary,l:'Normal'},{c:T.urgencyOrangeDot,l:'Low'}].map(({c,l})=><div key={l} style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:8,height:8,borderRadius:'50%',backgroundColor:c,flexShrink:0}}/><span style={{fontSize:10,color:T.textMuted}}>{l}</span></div>)}</div>
-            <div style={{flex:1,overflowY:'auto',padding:'10px 12px'}}>{!selectedDate?<div style={{textAlign:'center',padding:'40px 0',color:T.textMuted,fontSize:13}}>Tap a date to see its tasks</div>:(()=>{const tasks=allTasksWithDates.filter(t=>t.dueDate===selectedDate);if(!tasks.length) return <div style={{textAlign:'center',padding:'32px 0',color:T.textMuted,fontSize:13}}>No tasks on {new Date(selectedDate+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div>;return(<><div style={{color:T.text,fontWeight:700,fontSize:13,marginBottom:8}}>{new Date(selectedDate+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}<span style={{color:T.textMuted,fontWeight:400,marginLeft:6}}>· {tasks.length} task{tasks.length>1?'s':''}</span></div><div style={{display:'flex',flexDirection:'column',gap:8}}>{tasks.map(task=><div key={`${task.userId}-${task.id}`} style={{padding:'10px 12px',borderRadius:10,border:`1px solid ${T.border}`,backgroundColor:T.surface,display:'flex',gap:10}}><div style={{width:3,borderRadius:3,flexShrink:0,alignSelf:'stretch',backgroundColor:task.priority==='urgent'||task.priority==='high'?T.urgencyRedDot:task.priority==='normal'?T.primary:T.urgencyOrangeDot}}/><div style={{flex:1,minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:3,marginBottom:3}}><MapPin size={9} color={T.textMuted}/><span style={{fontSize:10,color:T.textMuted}}>{task.userName}</span><ChevronRight size={8} color={T.textMuted}/><span style={{fontSize:10,color:T.textMuted}}>{task.topicName}</span></div><div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:6}}><span style={{color:T.text,fontSize:13,fontWeight:600,flex:1,lineHeight:1.4,wordBreak:'break-word'}}>{task.text}</span><span style={{backgroundColor:task.priority==='urgent'||task.priority==='high'?T.urgencyRedBg:task.priority==='normal'?T.primary+'22':T.urgencyOrangeBg,color:task.priority==='urgent'||task.priority==='high'?T.urgencyRedText:task.priority==='normal'?T.primary:T.urgencyOrangeText,fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:20,textTransform:'uppercase',whiteSpace:'nowrap'}}>{task.priority}</span></div>{task.description&&<div style={{color:T.textMuted,fontSize:11,marginTop:3}}>{task.description}</div>}</div></div>)}</div></>);})()}</div>
-          </>)}
-        </div>
-      );
-    };
-    return <CalendarInner/>;
-  }
-
-  // ── SETTINGS ───────────────────────────────────────────────────────────────
-  if (showSettings) return (
-    <div style={pageCard}><ExitScreen/>
-      <div style={hdr}><div style={{display:'flex',alignItems:'center',gap:8}}><button onClick={()=>setShowSettings(false)} style={iconBtn()}><ArrowLeft size={14} color={T.headerText}/></button><div><div style={{color:T.headerText,fontWeight:700,fontSize:14}}>Settings</div><div style={{color:T.headerText,opacity:.7,fontSize:11}}>Appearance & behavior</div></div></div><div style={{display:'flex',gap:6,alignItems:'center'}}><SaveDot/><CloseBtn/></div></div>
-      <div style={{flex:1,overflowY:'auto',padding:16,display:'flex',flexDirection:'column',gap:14}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'13px 14px',...surf}}><div><div style={{color:T.text,fontSize:13,fontWeight:600,marginBottom:2,display:'flex',alignItems:'center',gap:6}}>{notifPermission==='granted'?<Bell size={14} color={T.success}/>:<BellOff size={14} color={T.textMuted}/>} Notifications</div><div style={{color:T.textMuted,fontSize:11}}>{notifPermission==='granted'?'Enabled — fires on app open for due tasks':notifPermission==='denied'?'Blocked — enable in iPhone Settings → Safari':notifPermission==='unsupported'?'Not supported on this browser':'Tap Enable to receive due-date reminders'}</div></div>{notifPermission!=='granted'&&notifPermission!=='denied'&&notifPermission!=='unsupported'&&<button onClick={requestNotifPermission} style={{...primBtn(),padding:'6px 12px',fontSize:11,flexShrink:0,marginLeft:10}}>Enable</button>}</div>
-        <div><div style={{color:T.textMuted,fontSize:11,fontWeight:700,letterSpacing:.5,marginBottom:8,textTransform:'uppercase'}}>Theme</div><div style={{display:'flex',gap:8}}>{['light','dark'].map(t=><button key={t} onClick={()=>setThemeName(t)} style={{flex:1,padding:11,borderRadius:9,border:`2px solid ${themeName===t?T.primary:T.border}`,backgroundColor:themeName===t?T.primary+'20':T.surface,color:T.text,fontSize:13,fontWeight:themeName===t?700:400,cursor:'pointer',transition:'all .15s'}}>{t==='light'?'☀️  Light':'🌙  Dark'}</button>)}</div></div>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'13px 14px',...surf}}><div><div style={{color:T.text,fontSize:13,fontWeight:600,marginBottom:2}}>Due-Date Urgency Colors</div><div style={{color:T.textMuted,fontSize:11}}>🔴 Overdue / today / tomorrow · 🟠 2 days left</div></div><button onClick={()=>setShowUrgency(v=>!v)} style={{width:46,height:26,borderRadius:13,backgroundColor:showUrgency?T.primary:T.border,border:'none',cursor:'pointer',position:'relative',transition:'background .2s',flexShrink:0,marginLeft:12}}><span style={{position:'absolute',top:3,left:showUrgency?21:3,width:20,height:20,borderRadius:'50%',backgroundColor:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,.25)'}}/></button></div>
-        {showUrgency&&<div style={{...surf,padding:'12px 14px',display:'flex',flexDirection:'column',gap:9}}><div style={{color:T.textMuted,fontSize:10,fontWeight:700,letterSpacing:.5,textTransform:'uppercase'}}>Color legend</div>{[{dot:T.urgencyRedDot,bg:T.urgencyRedBg,bd:T.urgencyRedBorder,label:'Overdue, due today, or due tomorrow'},{dot:T.urgencyOrangeDot,bg:T.urgencyOrangeBg,bd:T.urgencyOrangeBorder,label:'2 days remaining'}].map(({dot,bg,bd,label})=><div key={label} style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:28,height:18,borderRadius:5,backgroundColor:bg,border:`1.5px solid ${bd}`,flexShrink:0}}/><span style={{width:9,height:9,borderRadius:'50%',backgroundColor:dot,flexShrink:0}}/><span style={{color:T.text,fontSize:12}}>{label}</span></div>)}<div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:28,height:18,borderRadius:5,backgroundColor:T.bg,border:`1.5px solid ${T.border}`,flexShrink:0}}/><span style={{width:9,height:9,borderRadius:'50%',backgroundColor:T.border,flexShrink:0}}/><span style={{color:T.text,fontSize:12}}>More than 2 days — no highlight</span></div></div>}
-      </div>
-    </div>
-  );
-
-  // ── USER SELECTION ─────────────────────────────────────────────────────────
-  if (!currentUser) return (
-    <div style={pageCard}><ExitScreen/>
-      <div style={hdr}><div><div style={{color:T.headerText,fontWeight:700,fontSize:15}}>Daily Tasks</div><div style={{color:T.headerText,opacity:.7,fontSize:11}}>Select a user to continue</div></div>
-        <div style={{display:'flex',gap:6,alignItems:'center'}}><SaveDot/><UndoRedo/><button onClick={()=>setThemeName(n=>n==='light'?'dark':'light')} style={iconBtn()} title="Toggle theme"><Palette size={14} color={T.headerText}/></button><button onClick={()=>setShowCalendar(true)} style={iconBtn()} title="Calendar overview"><CalendarDays size={14} color={T.headerText}/></button><button onClick={()=>setShowSettings(true)} style={iconBtn()} title="Settings"><Settings size={14} color={T.headerText}/></button>
-          <div className="ie-popup" style={{position:'relative'}}><button onClick={()=>setShowIE(v=>!v)} style={iconBtn()} title="Import / Export"><div style={{display:'flex',flexDirection:'column'}}><ChevronUp size={9} color={T.headerText}/><ChevronDown size={9} color={T.headerText} style={{marginTop:-3}}/></div></button>
-            {showIE&&<div style={{position:'absolute',right:0,top:'calc(100% + 6px)',width:186,...card,padding:6,zIndex:60,boxShadow:'0 6px 24px rgba(0,0,0,.22)'}}><div style={{color:T.textMuted,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,padding:'4px 10px',marginBottom:2}}>Export</div><button onClick={doFullBackup} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'8px 10px',background:'none',border:'none',color:T.text,fontSize:12,cursor:'pointer',borderRadius:6}}><Download size={13} color={T.primary}/><span>Full Backup</span><span style={{marginLeft:'auto',color:T.textMuted,fontSize:10}}>all users</span></button>{Object.values(users).map(u=><button key={u.id} onClick={()=>doExportUser(u.id)} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'8px 10px',background:'none',border:'none',color:T.text,fontSize:12,cursor:'pointer',borderRadius:6}}><User size={13} color={T.textMuted}/><span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.name}</span></button>)}<div style={{height:1,backgroundColor:T.border,margin:'5px 4px'}}/><label style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'8px 10px',color:T.text,fontSize:12,cursor:'pointer',borderRadius:6}}><Upload size={13} color={T.success}/><span>Import Backup</span><input type="file" accept=".json" onChange={doImport} style={{display:'none'}}/></label></div>}
-          </div><CloseBtn/>
+          {ul !== "none" && <span style={{ width:8, height:8, borderRadius:"50%", flexShrink:0, backgroundColor:ul==="red" ? T.rRedDt : T.rOrgDt }}/>}
+          <button onClick={e => { e.stopPropagation(); setExpandSubs(p => ({ ...p, [task.id]:!p[task.id] })); }}
+            style={ghostBtn({ padding:4, color:isExpanded ? T.primary : T.muted })}>
+            <ListChecks size={14}/>
+          </button>
+          <button onClick={() => setCtxTask(task)} style={ghostBtn({ padding:"4px 2px", color:T.muted })}>
+            <MoreHorizontal size={18}/>
+          </button>
         </div>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:'10px 12px',display:'flex',flexDirection:'column',gap:6}}>{Object.values(users).map(user=>{const ul=userUrgLevel(user.topics),us=urgStyle(ul);return(<div key={user.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderRadius:10,border:`1.5px solid ${us.border||T.border}`,backgroundColor:us.bg||T.surface,transition:'all .15s'}}><User size={22} color={us.text||T.textMuted} style={{flexShrink:0}}/><div style={{flex:1,minWidth:0}}>{editingUserId===user.id?<input ref={editUserRef} defaultValue={user.name} style={{...inp,padding:'4px 8px',fontSize:13}} onBlur={e=>saveUserName(user.id,e.target.value)} onKeyDown={e=>{if(e.key==='Enter')saveUserName(user.id,e.target.value);if(e.key==='Escape')setEditingUserId(null);}}/>:<div style={{display:'flex',alignItems:'center',gap:3}}><span onClick={()=>setCurrentUser(user.id)} style={{color:us.text||T.text,fontWeight:600,fontSize:14,cursor:'pointer'}}>{user.name}</span><UrgDot level={ul}/><ChevronRight size={14} color={T.textMuted} style={{cursor:'pointer',marginLeft:2}} onClick={()=>setCurrentUser(user.id)}/></div>}<div style={{color:T.textMuted,fontSize:11,marginTop:2}}>{Object.keys(user.topics).length} topics · {Object.values(user.topics).reduce((a,tp)=>a+tp.tasks.length,0)} tasks</div></div><div style={{display:'flex',gap:3,flexShrink:0}}><button onClick={()=>setEditingUserId(user.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4}}><Edit3 size={13} color={T.primary}/></button><button onClick={()=>deleteUser(user.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4}}><X size={13} color={T.urgencyRedDot}/></button></div></div>);})}</div>
-      <div style={{padding:'10px 12px',borderTop:`1px solid ${T.border}`,backgroundColor:T.surface}}><div style={{display:'flex',gap:8}}><input ref={newUserRef} type="text" placeholder="Add new user…" value={newUserName} onChange={e=>setNewUserName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addUser();}} style={{...inp,flex:1}}/><button onClick={addUser} disabled={!newUserName.trim()} style={primBtn({opacity:newUserName.trim()?1:.4})}><Plus size={16}/></button></div></div>
-    </div>
-  );
-
-  // ── TOPIC SELECTION ────────────────────────────────────────────────────────
-  if (!currentTopic) return (
-    <div style={pageCard}><ExitScreen/>
-      <div style={hdr}><div style={{display:'flex',alignItems:'center',gap:8}}><button onClick={()=>setCurrentUser(null)} style={iconBtn()}><ArrowLeft size={14} color={T.headerText}/></button><div><div style={{color:T.headerText,fontWeight:700,fontSize:14}}>{currentUserData.name}'s Topics</div><div style={{color:T.headerText,opacity:.7,fontSize:11}}>Select a topic</div></div></div><div style={{display:'flex',gap:6,alignItems:'center'}}><SaveDot/><UndoRedo/><button onClick={()=>setThemeName(n=>n==='light'?'dark':'light')} style={iconBtn()}><Palette size={14} color={T.headerText}/></button><button onClick={()=>setShowSettings(true)} style={iconBtn()}><Settings size={14} color={T.headerText}/></button><CloseBtn/></div></div>
-      <div style={{flex:1,overflowY:'auto',padding:'10px 12px',display:'flex',flexDirection:'column',gap:6}}>{Object.values(currentUserData.topics).map(tp=>{const tl=topicUrgLevel(tp.tasks),ts=urgStyle(tl);return(<div key={tp.id} style={{display:'flex',alignItems:'center',gap:8,padding:'10px 13px',borderRadius:10,border:`1.5px solid ${ts.border||T.border}`,backgroundColor:ts.bg||T.surface,transition:'all .15s'}}><div style={{flex:1,minWidth:0}}>{editingTopicId===tp.id?<input ref={editTopicRef} defaultValue={tp.name} style={{...inp,padding:'4px 8px',fontSize:13}} onBlur={e=>saveTopicName(tp.id,e.target.value)} onKeyDown={e=>{if(e.key==='Enter')saveTopicName(tp.id,e.target.value);if(e.key==='Escape')setEditingTopicId(null);}}/>:<div style={{display:'flex',alignItems:'center',gap:3}}><span onClick={()=>setCurrentTopic(tp.id)} style={{color:ts.text||T.text,fontWeight:600,fontSize:13,cursor:'pointer'}}>{tp.name}</span><UrgDot level={tl}/><ChevronRight size={13} color={T.textMuted} style={{cursor:'pointer',marginLeft:2}} onClick={()=>setCurrentTopic(tp.id)}/></div>}<div style={{color:T.textMuted,fontSize:11,marginTop:2}}>{tp.tasks.length} tasks · {tp.tasks.filter(t=>t.completed).length} done</div></div><div style={{display:'flex',gap:3,flexShrink:0}}><button onClick={()=>setEditingTopicId(tp.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4}}><Edit3 size={12} color={T.primary}/></button><button onClick={()=>deleteTopic(tp.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4}}><X size={12} color={T.urgencyRedDot}/></button></div></div>);})}
-        {Object.keys(currentUserData.topics).length===0&&<div style={{textAlign:'center',padding:'28px 0',color:T.textMuted,fontSize:13}}>No topics yet — add one below!</div>}
-      </div>
-      <div style={{padding:'10px 12px',borderTop:`1px solid ${T.border}`,backgroundColor:T.surface}}><div style={{display:'flex',gap:8}}><input ref={newTopicRef} type="text" placeholder="New topic name…" value={newTopicText} onChange={e=>setNewTopicText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addTopic();}} style={{...inp,flex:1}}/><button onClick={addTopic} disabled={!newTopicText.trim()} style={primBtn({opacity:newTopicText.trim()?1:.4})}><Plus size={16}/></button></div></div>
-    </div>
-  );
-
-  // ── TASK VIEW ──────────────────────────────────────────────────────────────
-  const doneCount=filteredTasks.filter(t=>t.completed).length,totalCount=filteredTasks.length,progress=totalCount>0?(doneCount/totalCount)*100:0;
-  return (
-    <div style={{...pageCard,position:'relative'}}><ExitScreen/>
-      {taskDetails&&(
-        <div className="td-popup" style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,.55)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
-          <div style={{...card,width:'100%',maxWidth:360,overflow:'hidden'}}>
-            <div style={{...hdr,padding:'10px 14px'}}><span style={{color:T.headerText,fontWeight:700,fontSize:14}}>Task Details</span><button onClick={()=>setTaskDetails(null)} style={iconBtn()}><X size={14} color={T.headerText}/></button></div>
-            <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
-              <div><div style={{color:T.textMuted,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>Task</div><div style={{color:T.text,fontSize:13}}>{taskDetails.text}</div></div>
-              {taskDetails.description&&<div><div style={{color:T.textMuted,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>Description</div><div style={{color:T.text,fontSize:13}}>{taskDetails.description}</div></div>}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><div><div style={{color:T.textMuted,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>Priority</div><div style={{color:T.text,fontSize:13,textTransform:'capitalize'}}>{taskDetails.priority}</div></div>{taskDetails.dueDate&&<div><div style={{color:T.textMuted,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>Due</div><div style={{color:dueDateColor(taskDetails.dueDate),fontSize:13,fontWeight:600}}>{fmtDate(taskDetails.dueDate)}</div></div>}</div>
-              {taskDetails.recurrence&&<div><div style={{color:T.textMuted,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>Repeat</div><div style={{color:T.text,fontSize:13,display:'flex',alignItems:'center',gap:5}}><Repeat size={12}/>{recLabels[taskDetails.recurrence]}</div></div>}
-              {taskDetails.subtasks?.length>0&&<div><div style={{color:T.textMuted,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:.4,marginBottom:6}}>Subtasks ({taskDetails.subtasks.filter(s=>s.completed).length}/{taskDetails.subtasks.length})</div>{taskDetails.subtasks.map(s=><div key={s.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><span style={{width:14,height:14,borderRadius:3,border:`1.5px solid ${s.completed?T.success:T.border}`,backgroundColor:s.completed?T.success:'transparent',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>{s.completed&&<Check size={9} color="#fff"/>}</span><span style={{fontSize:12,color:s.completed?T.textMuted:T.text,textDecoration:s.completed?'line-through':'none'}}>{s.text}</span></div>)}</div>}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginTop:2}}><div style={{color:T.textMuted,fontSize:11}}>Created {new Date(taskDetails.createdAt).toLocaleDateString()}</div>{taskDetails.completedAt&&<div style={{color:T.textMuted,fontSize:11}}>Done {new Date(taskDetails.completedAt).toLocaleDateString()}</div>}</div>
-              {taskDetails.dueDate&&<button onClick={()=>exportTaskToCalendar(taskDetails)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,width:'100%',marginTop:8,padding:'9px 0',backgroundColor:T.success+'22',border:`1.5px solid ${T.success}`,borderRadius:8,color:T.success,fontSize:13,fontWeight:600,cursor:'pointer'}}><CalendarPlus size={15}/> Add to Calendar / Set Reminder</button>}
+      {/* Subtask panel — always rendered when expanded, not gated on subtasks.length */}
+      {isExpanded && (
+        <div style={{ padding:"6px 16px 10px 56px", backgroundColor:T.cardAlt, borderTop:`0.5px solid ${T.sep}` }}>
+          {subtasks.map(sub => (
+            <div key={sub.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0" }}>
+              <button onClick={() => toggleSub(task.id, sub.id)}
+                style={{ flexShrink:0, width:16, height:16, borderRadius:3, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0,
+                  border:`1.5px solid ${sub.completed ? T.success : T.sepHard}`,
+                  backgroundColor:sub.completed ? T.success : "transparent" }}>
+                {sub.completed && <Check size={9} color="#fff"/>}
+              </button>
+              <span style={{ flex:1, fontSize:13, color:sub.completed ? T.muted : T.text, textDecoration:sub.completed ? "line-through" : "none" }}>{sub.text}</span>
+              <button onClick={() => deleteSub(task.id, sub.id)} style={ghostBtn({ padding:2, color:T.muted })}><X size={11}/></button>
             </div>
+          ))}
+          <div style={{ display:"flex", gap:6, marginTop:6 }}>
+            <input
+              placeholder="Add subtask…"
+              value={subInputs[task.id] || ""}
+              onChange={e => setSubInputs(p => ({ ...p, [task.id]:e.target.value }))}
+              onKeyDown={e => { if (e.key === "Enter") addSub(task.id, subInputs[task.id] || ""); }}
+              style={inpStyle({ flex:1, fontSize:13, padding:"7px 10px" })}
+            />
+            <button onClick={() => addSub(task.id, subInputs[task.id] || "")}
+              style={{ backgroundColor:T.primary, color:"#fff", border:"none", borderRadius:10, padding:"7px 12px", cursor:"pointer", display:"flex", alignItems:"center" }}>
+              <Plus size={13}/>
+            </button>
           </div>
         </div>
       )}
-      <div style={hdr}><div style={{display:'flex',alignItems:'center',gap:8}}><button onClick={()=>setCurrentTopic(null)} style={iconBtn()}><ArrowLeft size={14} color={T.headerText}/></button><div><div style={{color:T.headerText,fontWeight:700,fontSize:14}}>{currentTopicData.name}</div><div style={{color:T.headerText,opacity:.7,fontSize:11}}>{doneCount}/{totalCount} done · {currentUserData.name}</div></div></div><div style={{display:'flex',gap:5,alignItems:'center'}}><SaveDot/><UndoRedo/><button onClick={()=>setShowStats(v=>!v)} style={iconBtn()} title="Stats"><BarChart3 size={14} color={T.headerText}/></button><button onClick={()=>setShowSettings(true)} style={iconBtn()} title="Settings"><Settings size={14} color={T.headerText}/></button><CloseBtn/></div></div>
-      <div style={{height:3,backgroundColor:T.border}}><div style={{height:3,width:`${progress}%`,backgroundColor:T.primary,transition:'width .4s ease'}}/></div>
-      {showStats&&<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',backgroundColor:T.surface,borderBottom:`1px solid ${T.border}`,padding:'10px 0'}}>{[{l:'Total',v:stats.total,c:T.text},{l:'Done',v:stats.done,c:T.success},{l:'Today',v:stats.todayDone,c:T.primary},{l:'Urgent',v:stats.urgent,c:T.urgencyRedDot}].map(({l,v,c})=><div key={l} style={{textAlign:'center'}}><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div><div style={{fontSize:10,color:T.textMuted,marginTop:1}}>{l}</div></div>)}</div>}
-      <div style={{padding:'8px 12px',backgroundColor:T.surface,borderBottom:`1px solid ${T.border}`,display:'flex',gap:6}}><div style={{flex:1,position:'relative'}}><Search size={13} color={T.textMuted} style={{position:'absolute',left:9,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}}/><input type="text" placeholder="Search…" onChange={e=>debouncedSearch(e.target.value)} style={{...inp,paddingLeft:28,fontSize:12}}/></div><select value={filterUrg} onChange={e=>setFilterUrg(e.target.value)} style={{...inp,width:'auto',padding:'6px 7px',fontSize:11}}><option value="all">All</option><option value="urgent">Urgent</option><option value="normal">Normal</option></select><select value={filterPri} onChange={e=>setFilterPri(e.target.value)} style={{...inp,width:'auto',padding:'6px 7px',fontSize:11}}><option value="all">All</option><option value="urgent">Urgent</option><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></div>
-      <div style={{flex:1,overflowY:'auto',padding:'8px 12px',display:'flex',flexDirection:'column',gap:5}}>
-        {filteredTasks.length===0?<div style={{textAlign:'center',padding:'34px 0',color:T.textMuted,fontSize:13}}>{searchTerm||filterUrg!=='all'||filterPri!=='all'?'No tasks match your filters':'No tasks yet — add one below!'}</div>
-        :filteredTasks.map(task=>{
-          const ul=task.completed?'none':urgLevel(task.dueDate),us=urgStyle(ul),isEditing=editingTaskId===task.id;
-          const subtasks=task.subtasks||[],subDone=subtasks.filter(s=>s.completed).length,isExpanded=!!expandedSubtasks[task.id];
-          return(
-            <div key={task.id} className={isEditing?'edit-task':''} style={{borderRadius:9,border:`1.5px solid ${us.border||T.border}`,backgroundColor:us.bg||(task.completed?T.completedBg:T.bg),transition:'all .2s',overflow:'hidden'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px'}}>
-                <button onClick={()=>toggleTask(task.id)} style={{flexShrink:0,width:18,height:18,borderRadius:5,border:`2px solid ${task.completed?T.success:T.border}`,backgroundColor:task.completed?T.success:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .2s'}}>{task.completed&&<Check size={11} color="#fff"/>}</button>
-                <div className={isEditing?'edit-task':''} style={{flex:1,minWidth:0,cursor:isEditing?'default':'pointer'}} onClick={()=>{if(!isEditing)startEdit(task);}}>
-                  {isEditing?(
-                    <div className="edit-task" style={{display:'flex',flexDirection:'column',gap:5}}>
-                      <input ref={editInputRef} value={editText} onChange={e=>setEditText(e.target.value)} style={inp} onKeyDown={e=>{if(e.key==='Enter')saveEdit(task.id);if(e.key==='Escape')setEditingTaskId(null);}}/>
-                      <textarea value={editDesc} onChange={e=>setEditDesc(e.target.value)} placeholder="Description…" rows={2} style={{...inp,resize:'vertical',fontSize:12}}/>
-                      <div style={{display:'flex',gap:5}}><input type="date" value={editDue} onChange={e=>setEditDue(e.target.value)} style={{...inp,flex:1,fontSize:11,padding:'6px 7px'}}/><select value={editPriority} onChange={e=>setEditPriority(e.target.value)} style={{...inp,width:'auto',fontSize:11,padding:'6px 7px'}}><option value="urgent">Urgent</option><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select><select value={editRec} onChange={e=>setEditRec(e.target.value)} style={{...inp,width:'auto',fontSize:11,padding:'6px 7px'}}><option value="none">No repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></div>
-                      <button onClick={()=>saveEdit(task.id)} style={primBtn({padding:7,fontSize:12})}>Save Changes</button>
-                    </div>
-                  ):(
-                    <>
-                      <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}><span style={{color:task.completed?T.completedText:(us.text||T.text),fontSize:13,fontWeight:500,textDecoration:task.completed?'line-through':'none',wordBreak:'break-word'}}>{task.text}</span>{!task.completed&&<UrgDot level={ul}/>}{task.recurrence&&<Repeat size={9} color={T.textMuted}/>}{subtasks.length>0&&<span style={{fontSize:10,color:subDone===subtasks.length?T.success:T.textMuted,fontWeight:600}}>({subDone}/{subtasks.length})</span>}</div>
-                      {task.description&&<div style={{color:T.textMuted,fontSize:11,marginTop:2}}>{task.description}</div>}
-                      {task.dueDate&&<div style={{display:'flex',alignItems:'center',gap:4,marginTop:3}}><Calendar size={10} color={dueDateColor(task.dueDate)}/><span style={{color:dueDateColor(task.dueDate),fontSize:11,fontWeight:600}}>{fmtDate(task.dueDate)}</span></div>}
-                    </>
-                  )}
-                </div>
-                {!isEditing&&<div style={{display:'flex',gap:2,flexShrink:0}}>
-                  <button onClick={e=>{e.stopPropagation();setExpandedSubtasks(prev=>({...prev,[task.id]:!prev[task.id]}));}} style={{background:'none',border:'none',cursor:'pointer',padding:3}} title="Subtasks"><ListChecks size={12} color={isExpanded?T.primary:T.textMuted}/></button>
-                  {task.dueDate&&<button onClick={()=>exportTaskToCalendar(task)} style={{background:'none',border:'none',cursor:'pointer',padding:3}} title="Add to Calendar"><CalendarPlus size={12} color={T.success}/></button>}
-                  <button onClick={()=>setTaskDetails(task)} style={{background:'none',border:'none',cursor:'pointer',padding:3}}><FileText size={12} color={T.primary}/></button>
-                  <button onClick={()=>deleteTask(task.id)} style={{background:'none',border:'none',cursor:'pointer',padding:3}}><X size={12} color={T.urgencyRedDot}/></button>
-                </div>}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+export default function App() {
+
+  // ── ALL state hooks ────────────────────────────────────────────────────────
+  const [users,        setUsers]       = useState(DEFAULT_DATA);
+  const [curUser,      setCurUser]     = useState(null);
+  const [curTopic,     setCurTopic]    = useState(null);
+  const [theme,        setTheme]       = useState("light");
+  const [showUrgency,  setShowUrgency] = useState(true);
+  const [activeTab,    setActiveTab]   = useState("home");
+  // Smart Home button: remember user+topic when leaving Home tab
+  const [homeMemUser,  setHomeMemUser] = useState(null);
+  const [homeMemTopic, setHomeMemTopic]= useState(null);
+  const [showBoarding, setShowBoarding]= useState(true);
+  const [boardStep,    setBoardStep]   = useState(0);
+  const [notifOn,      setNotifOn]     = useState(false);
+
+  // Task UI state
+  const [showSheet,    setShowSheet]   = useState(false);
+  const [sheetTask,    setSheetTask]   = useState(null);
+  const [ctxTask,      setCtxTask]     = useState(null);
+  const [showDone,     setShowDone]    = useState(false);
+  const [expandSubs,   setExpandSubs]  = useState({});
+  const [subInputs,    setSubInputs]   = useState({});
+  const [filterPill,   setFilterPill]  = useState("all");
+  const [showSearch,   setShowSearch]  = useState(false);
+  const [searchTerm,   setSearchTerm]  = useState("");
+
+  // v4: Global search
+  const [globalSearch, setGlobalSearch]= useState(false);
+  const [globalTerm,   setGlobalTerm]  = useState("");
+
+  // Sheet form
+  const [eText,     setEText]     = useState("");
+  const [eDesc,     setEDesc]     = useState("");
+  const [eDue,      setEDue]      = useState("");
+  const [eTime,     setETime]     = useState("");
+  const [ePri,      setEPri]      = useState("normal");
+  const [eRec,      setERec]      = useState("none");
+  const [eEst,      setEEst]      = useState("");   // v4: estimate
+  const [eShowDesc, setEShowDesc] = useState(false);
+
+  // User/topic editing
+  const [editUserId,  setEditUserId]  = useState(null);
+  const [editTopicId, setEditTopicId] = useState(null);
+  const [newUserName, setNewUserName] = useState("");
+  const [newTopicTxt, setNewTopicTxt] = useState("");
+  const [addUser,     setAddUser]     = useState(false);
+  const [addTopic,    setAddTopic]    = useState(false);
+
+  // History / save
+  const [saveStatus, setSaveStatus] = useState("saved");
+  const [hist,       setHist]       = useState([DEFAULT_DATA]);
+  const [histIdx,    setHistIdx]    = useState(0);
+
+  // Calendar
+  const [calView,  setCalView]  = useState("agenda");
+  const [calYear,  setCalYear]  = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calSel,   setCalSel]   = useState(new Date().toISOString().split("T")[0]);
+
+  // v4: Drag-to-reorder
+  const [dragId,     setDragId]     = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  // Refs
+  const stripRef  = useRef(null);
+  const sheetRef  = useRef(null);
+  const editURef  = useRef(null);
+  const editTRef  = useRef(null);
+  const newURef   = useRef(null);
+  const newTRef   = useRef(null);
+  const gSearchRef= useRef(null);
+
+  const T = theme === "dark" ? DARK : LIGHT;
+  const curUserData  = curUser  ? users[curUser]  : null;
+  const curTopicData = curUser && curTopic ? users[curUser]?.topics[curTopic] : null;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const getDays = (ds) => {
+    if (!ds) return null;
+    const due = new Date(ds); due.setHours(0,0,0,0);
+    const now = new Date(); now.setHours(0,0,0,0);
+    return Math.ceil((due - now) / 86400000);
+  };
+  const urgLv = (ds) => {
+    const d = getDays(ds);
+    if (d === null) return "none";
+    if (d < 0 || d <= 1) return "red";
+    if (d === 2) return "orange";
+    return "none";
+  };
+  const topicUrg = (tasks) => {
+    let m = "none";
+    (tasks || []).forEach(t => {
+      if (!t.completed) {
+        const u = urgLv(t.dueDate);
+        if (u === "red") m = "red";
+        else if (u === "orange" && m !== "red") m = "orange";
+      }
+    });
+    return m;
+  };
+  const userUrg = (topics) => {
+    let m = "none";
+    Object.values(topics || {}).forEach(tp => {
+      const u = topicUrg(tp.tasks);
+      if (u === "red") m = "red";
+      else if (u === "orange" && m !== "red") m = "orange";
+    });
+    return m;
+  };
+  const fmtTime = (t) => {
+    if (!t) return null;
+    const [h, m] = t.split(":");
+    const hr = parseInt(h);
+    return (hr > 12 ? hr - 12 : hr || 12) + ":" + m + " " + (hr >= 12 ? "PM" : "AM");
+  };
+  const fmtDate = (ds) => {
+    if (!ds) return null;
+    const d = getDays(ds);
+    if (d < 0)   return Math.abs(d) + "d overdue";
+    if (d === 0) return "Today";
+    if (d === 1) return "Tomorrow";
+    if (d <= 7)  return d + " days";
+    return new Date(ds).toLocaleDateString("en-US", { month:"short", day:"numeric" });
+  };
+  const dueTxColor = (ds) => {
+    const u = urgLv(ds);
+    if (u === "red")    return T.rRedTx;
+    if (u === "orange") return T.rOrgTx;
+    return T.muted;
+  };
+
+  // ── History ────────────────────────────────────────────────────────────────
+  const push = (next) => {
+    setUsers(next);
+    setSaveStatus("saving");
+    const h = hist.slice(0, histIdx + 1);
+    h.push(next);
+    setHist(h);
+    setHistIdx(h.length - 1);
+    setTimeout(() => setSaveStatus("saved"), 500);
+  };
+  const undo = () => { if (histIdx > 0) { const i = histIdx - 1; setHistIdx(i); setUsers(hist[i]); } };
+  const redo = () => { if (histIdx < hist.length - 1) { const i = histIdx + 1; setHistIdx(i); setUsers(hist[i]); } };
+
+  // ── All useMemo ────────────────────────────────────────────────────────────
+  const debSearch  = useMemo(() => debounce(v => setSearchTerm(v),  250), []);
+  const debGSearch = useMemo(() => debounce(v => setGlobalTerm(v), 250), []);
+
+  const filteredTasks = useMemo(() => {
+    if (!curTopicData?.tasks) return [];
+    const tasks = curTopicData.tasks.filter(t => {
+      const ms = !searchTerm || t.text.toLowerCase().includes(searchTerm.toLowerCase());
+      const u = urgLv(t.dueDate);
+      if (filterPill === "pinned") return !t.completed && t.pinned && ms;
+      if (filterPill === "urgent") return !t.completed && u !== "none" && ms;
+      if (filterPill === "normal") return !t.completed && u === "none" && ms;
+      return ms;
+    });
+    return [
+      ...tasks.filter(t => t.pinned && !t.completed),
+      ...tasks.filter(t => !t.pinned && !t.completed),
+      ...tasks.filter(t => t.completed),
+    ];
+  }, [curTopicData, searchTerm, filterPill, showUrgency]);
+
+  // v4: Global search results
+  const globalResults = useMemo(() => {
+    if (!globalTerm.trim()) return [];
+    const term = globalTerm.toLowerCase();
+    const results = [];
+    Object.values(users).forEach(u =>
+      Object.values(u.topics).forEach(tp =>
+        tp.tasks.forEach(t => {
+          if (t.text.toLowerCase().includes(term) || (t.description || "").toLowerCase().includes(term))
+            results.push({ ...t, userName:u.name, userId:u.id, topicName:tp.name, topicId:tp.id });
+        })
+      )
+    );
+    return results.slice(0, 40);
+  }, [users, globalTerm]);
+
+  // v4: streak + weekly data
+  const streakData = useMemo(() => getStreakData(users), [users]);
+
+  // v4: daily time estimate total (Today screen)
+  const todayEstimate = useMemo(() => {
+    const ts = new Date().toISOString().split("T")[0];
+    let total = 0;
+    Object.values(users).forEach(u =>
+      Object.values(u.topics).forEach(tp =>
+        tp.tasks.forEach(t => {
+          if (!t.completed && t.dueDate === ts && t.estimate) total += parseInt(t.estimate);
+        })
+      )
+    );
+    return total;
+  }, [users]);
+
+  const allDated = useMemo(() => {
+    const r = [];
+    Object.values(users).forEach(u =>
+      Object.values(u.topics).forEach(tp =>
+        tp.tasks.forEach(t => {
+          if (t.dueDate && !t.completed)
+            r.push({ ...t, userName:u.name, userId:u.id, topicName:tp.name });
+        })
+      )
+    );
+    return r;
+  }, [users]);
+
+  const briefing = useMemo(() => {
+    const ts = new Date().toISOString().split("T")[0];
+    const ys = new Date(Date.now() - 86400000).toDateString();
+    let dueToday = [], overdue = [], doneYest = 0;
+    Object.values(users).forEach(u =>
+      Object.values(u.topics).forEach(tp =>
+        tp.tasks.forEach(t => {
+          if (t.completed) {
+            if (t.completedAt && new Date(t.completedAt).toDateString() === ys) doneYest++;
+          } else if (t.dueDate === ts) {
+            dueToday.push({ ...t, userName:u.name, topicName:tp.name });
+          } else if (t.dueDate && t.dueDate < ts) {
+            overdue.push({ ...t, userName:u.name, topicName:tp.name });
+          }
+        })
+      )
+    );
+    return { dueToday, overdue, doneYest };
+  }, [users]);
+
+  const agendaDays = useMemo(() => {
+    const today = new Date();
+    const days = [];
+    for (let i = -7; i < 54; i++) {
+      const dt = new Date(today); dt.setDate(dt.getDate() + i);
+      const ds = dt.toISOString().split("T")[0];
+      days.push({ ds, dt, tasks: allDated.filter(t => t.dueDate === ds) });
+    }
+    return days;
+  }, [allDated]);
+
+  const datePriColor = (ds) => {
+    const tasks = allDated.filter(t => t.dueDate === ds);
+    if (!tasks.length) return null;
+    const has = (p) => tasks.some(t => t.priority === p);
+    if (has("urgent") || has("high")) return { bg:T.rRedBg, bd:T.rRedBd, tx:T.rRedTx, dt:T.rRedDt };
+    if (has("normal"))                return { bg:T.primaryDim, bd:T.primary, tx:T.primary, dt:T.primary };
+    return { bg:T.rOrgBg, bd:T.rOrgBd, tx:T.rOrgTx, dt:T.rOrgDt };
+  };
+
+  // ── All useEffect ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    setSaveStatus("saving");
+    const t = setTimeout(() => setSaveStatus("saved"), 500);
+    return () => clearTimeout(t);
+  }, [users, theme, showUrgency]);
+
+  useEffect(() => {
+    if (activeTab === "calendar" && stripRef.current) {
+      setTimeout(() => {
+        const el = stripRef.current && stripRef.current.querySelector('[data-today="true"]');
+        if (el) el.scrollIntoView({ inline:"center", block:"nearest", behavior:"smooth" });
+      }, 120);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (editUserId  && editURef.current) { editURef.current.focus(); editURef.current.select(); }
+  }, [editUserId]);
+  useEffect(() => {
+    if (editTopicId && editTRef.current) { editTRef.current.focus(); editTRef.current.select(); }
+  }, [editTopicId]);
+  useEffect(() => {
+    if (showSheet && sheetRef.current) setTimeout(() => sheetRef.current && sheetRef.current.focus(), 80);
+  }, [showSheet]);
+  useEffect(() => {
+    if (globalSearch && gSearchRef.current) setTimeout(() => gSearchRef.current && gSearchRef.current.focus(), 80);
+  }, [globalSearch]);
+  useEffect(() => {
+    const h = (e) => {
+      if (e.key === "Escape") {
+        if (ctxTask) setCtxTask(null);
+        else if (showSheet) { setShowSheet(false); setSheetTask(null); }
+        else if (globalSearch) { setGlobalSearch(false); setGlobalTerm(""); }
+      }
+    };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [ctxTask, showSheet, globalSearch]);
+
+  // v4 fix: dragend/pointerup on document always clears drag state.
+  // On mobile Safari dragend fires unreliably — without this the dragged row
+  // keeps opacity:0.4 permanently if the finger lifts outside a drop target.
+  useEffect(() => {
+    const clear = () => { setDragId(null); setDragOverId(null); };
+    document.addEventListener("dragend",   clear);
+    document.addEventListener("pointerup", clear);
+    return () => {
+      document.removeEventListener("dragend",   clear);
+      document.removeEventListener("pointerup", clear);
+    };
+  }, []);
+
+  // ── CRUD ────────────────────────────────────────────────────────────────────
+  const recLabels = { none:"No repeat", daily:"Every day", weekly:"Every week", monthly:"Every month", yearly:"Every year" };
+  const nextDue = (ds, rec) => {
+    if (!ds || !rec || rec === "none") return null;
+    const d = new Date(ds);
+    if (rec === "daily")   d.setDate(d.getDate() + 1);
+    if (rec === "weekly")  d.setDate(d.getDate() + 7);
+    if (rec === "monthly") d.setMonth(d.getMonth() + 1);
+    if (rec === "yearly")  d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split("T")[0];
+  };
+
+  const openAdd = () => {
+    if (!curUser || !curTopic) return;
+    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const nextHour = now.getMinutes() > 0 ? now.getHours() + 2 : now.getHours() + 1;
+    const clampedHour = nextHour >= 24 ? nextHour - 24 : nextHour;
+    const defaultTime = String(clampedHour).padStart(2, "0") + ":00";
+    setEText(""); setEDesc(""); setEDue(today); setETime(defaultTime); setEPri("normal"); setERec("none"); setEEst(""); setEShowDesc(false);
+    setSheetTask(null); setShowSheet(true);
+  };
+  const openEdit = (task) => {
+    setEText(task.text); setEDesc(task.description || ""); setEDue(task.dueDate || "");
+    setETime(task.dueTime || ""); setEPri(task.priority || "normal"); setERec(task.recurrence || "none");
+    setEEst(task.estimate || ""); setEShowDesc(!!task.description);
+    setSheetTask(task); setCtxTask(null); setShowSheet(true);
+  };
+  const saveSheet = () => {
+    const text = eText.trim(); if (!text || !curUser || !curTopic) return;
+    const n = JSON.parse(JSON.stringify(users));
+    if (sheetTask) {
+      const idx = n[curUser].topics[curTopic].tasks.findIndex(t => t.id === sheetTask.id);
+      if (idx !== -1) n[curUser].topics[curTopic].tasks[idx] = {
+        ...n[curUser].topics[curTopic].tasks[idx],
+        text, description:eDesc, dueDate:eDue || null, dueTime:eTime || null,
+        priority:ePri, recurrence:eRec === "none" ? null : eRec, estimate:eEst,
+      };
+    } else {
+      n[curUser].topics[curTopic].tasks.push({
+        id:Date.now(), text, description:eDesc.trim(), completed:false,
+        dueDate:eDue || null, dueTime:eTime || null, priority:ePri,
+        recurrence:eRec === "none" ? null : eRec, estimate:eEst,
+        createdAt:new Date().toISOString(), completedAt:null, pinned:false, subtasks:[],
+      });
+    }
+    push(n); setShowSheet(false); setSheetTask(null);
+  };
+
+  const toggleTask = (id, userId, topicId) => {
+    const uid = userId || curUser;
+    const tid = topicId || curTopic;
+    if (!uid || !tid) return;
+    const n = JSON.parse(JSON.stringify(users));
+    const idx = n[uid].topics[tid].tasks.findIndex(t => t.id === id);
+    if (idx === -1) return;
+    const task = n[uid].topics[tid].tasks[idx];
+    const upd = { ...task, completed:!task.completed, completedAt:!task.completed ? new Date().toISOString() : null };
+    n[uid].topics[tid].tasks[idx] = upd;
+    if (upd.completed && upd.recurrence) {
+      n[uid].topics[tid].tasks.push({
+        ...upd, id:Date.now() + 1, completed:false,
+        dueDate:nextDue(upd.dueDate, upd.recurrence),
+        createdAt:new Date().toISOString(), completedAt:null, subtasks:[],
+      });
+    }
+    push(n);
+  };
+  const deleteTask = (id) => {
+    const n = JSON.parse(JSON.stringify(users));
+    n[curUser].topics[curTopic].tasks = n[curUser].topics[curTopic].tasks.filter(t => t.id !== id);
+    push(n);
+  };
+  const togglePin = (id) => {
+    const n = JSON.parse(JSON.stringify(users));
+    const idx = n[curUser].topics[curTopic].tasks.findIndex(t => t.id === id);
+    if (idx !== -1) { n[curUser].topics[curTopic].tasks[idx].pinned = !n[curUser].topics[curTopic].tasks[idx].pinned; push(n); }
+  };
+
+  // v4: reorder tasks (drag & drop result)
+  const reorderTasks = (fromId, toId) => {
+    if (fromId === toId) return;
+    const n = JSON.parse(JSON.stringify(users));
+    const tasks = n[curUser].topics[curTopic].tasks;
+    const fromIdx = tasks.findIndex(t => t.id === fromId);
+    const toIdx   = tasks.findIndex(t => t.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = tasks.splice(fromIdx, 1);
+    tasks.splice(toIdx, 0, moved);
+    push(n);
+    setDragId(null); setDragOverId(null);
+  };
+
+  const addSub = (taskId, text) => {
+    const trimmed = text.trim(); if (!trimmed) return;
+    const n = JSON.parse(JSON.stringify(users));
+    const task = n[curUser].topics[curTopic].tasks.find(t => t.id === taskId);
+    if (!task) return;
+    if (!task.subtasks) task.subtasks = [];
+    task.subtasks.push({ id:Date.now(), text:trimmed, completed:false });
+    push(n); setSubInputs(p => ({ ...p, [taskId]:"" }));
+  };
+  const toggleSub = (taskId, subId) => {
+    const n = JSON.parse(JSON.stringify(users));
+    const task = n[curUser].topics[curTopic].tasks.find(t => t.id === taskId);
+    if (!task?.subtasks) return;
+    const sub = task.subtasks.find(s => s.id === subId);
+    if (sub) sub.completed = !sub.completed;
+    push(n);
+  };
+  const deleteSub = (taskId, subId) => {
+    const n = JSON.parse(JSON.stringify(users));
+    const task = n[curUser].topics[curTopic].tasks.find(t => t.id === taskId);
+    if (!task?.subtasks) return;
+    task.subtasks = task.subtasks.filter(s => s.id !== subId);
+    push(n);
+  };
+
+  const doAddUser = () => {
+    const name = newUserName.trim(); if (!name) return;
+    const id = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    if (users[id]) { alert("Profile already exists."); return; }
+    const n = JSON.parse(JSON.stringify(users));
+    n[id] = { id, name, topics:{} }; push(n);
+    setNewUserName(""); setAddUser(false);
+  };
+  const deleteUser = (id) => {
+    if (Object.keys(users).length <= 1) return;
+    const n = JSON.parse(JSON.stringify(users)); delete n[id]; push(n);
+    if (curUser === id) { setCurUser(null); setCurTopic(null); }
+  };
+  const saveUserName = (id, name) => {
+    if (name.trim()) { const n = JSON.parse(JSON.stringify(users)); n[id].name = name.trim(); push(n); }
+    setEditUserId(null);
+  };
+  const doAddTopic = () => {
+    const name = newTopicTxt.trim(); if (!name || !curUser) return;
+    const id = Date.now().toString();
+    const n = JSON.parse(JSON.stringify(users));
+    n[curUser].topics[id] = { id, name, tasks:[] }; push(n);
+    setNewTopicTxt(""); setAddTopic(false);
+  };
+  const deleteTopic = (id) => {
+    const n = JSON.parse(JSON.stringify(users)); delete n[curUser].topics[id]; push(n);
+    if (curTopic === id) setCurTopic(null);
+  };
+  const saveTopicName = (id, name) => {
+    if (name.trim()) { const n = JSON.parse(JSON.stringify(users)); n[curUser].topics[id].name = name.trim(); push(n); }
+    setEditTopicId(null);
+  };
+
+  const reqNotif = async () => setNotifOn(true);
+  const doExport = () => alert("Export works in the real PWA.");
+
+  // ── Style helpers ──────────────────────────────────────────────────────────
+  const S = {
+    inp: (extra) => ({
+      backgroundColor:T.cardAlt, border:"none", color:T.text, borderRadius:12,
+      padding:"12px 14px", fontSize:15, outline:"none", width:"100%", boxSizing:"border-box", ...(extra || {}),
+    }),
+    primBtn: (extra) => ({
+      backgroundColor:T.primary, color:"#fff", border:"none", borderRadius:12,
+      padding:"14px", fontSize:16, fontWeight:700, cursor:"pointer", width:"100%", ...(extra || {}),
+    }),
+    ghost: (extra) => ({
+      background:"none", border:"none", color:T.primary, fontSize:15, cursor:"pointer", fontWeight:500, ...(extra || {}),
+    }),
+    pill: (active, extra) => ({
+      padding:"7px 16px", borderRadius:20, border:"none", fontSize:13, fontWeight:600,
+      cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+      backgroundColor:active ? T.primary : T.cardAlt,
+      color:active ? "#fff" : T.muted, ...(extra || {}),
+    }),
+    card: (extra) => ({ backgroundColor:T.card, borderRadius:16, overflow:"hidden", ...(extra || {}) }),
+    row:  (extra) => ({ display:"flex", alignItems:"center", padding:"13px 16px", gap:12, ...(extra || {}) }),
+    sep:  ()      => ({ height:1, backgroundColor:T.sep, margin:"0 16px" }),
+    sectionLabel: (color) => ({
+      fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.8,
+      color:color || T.muted, marginBottom:8, paddingLeft:4,
+    }),
+  };
+
+  // ── Undo/redo buttons (shared) ─────────────────────────────────────────────
+  const urBtns = () => (
+    <div style={{ display:"flex", gap:2 }}>
+      <button onClick={undo} disabled={histIdx === 0} title="Undo"
+        style={S.ghost({ padding:6, color:histIdx === 0 ? T.hint : T.primary })}>
+        <Undo2 size={18}/>
+      </button>
+      <button onClick={redo} disabled={histIdx >= hist.length - 1} title="Redo"
+        style={S.ghost({ padding:6, color:histIdx >= hist.length - 1 ? T.hint : T.primary })}>
+        <Redo2 size={18}/>
+      </button>
+    </div>
+  );
+
+  // ── Tab bar — floating pill (iOS glass capsule style) ─────────────────────
+  const TabBar = () => {
+    const isDark = theme === "dark";
+    const showFab = activeTab === "home" && curUser && curTopic;
+
+    const handleTabPress = (tabId) => {
+      if (tabId === "home") {
+        if (activeTab !== "home") {
+          // Coming from Today/Calendar/Settings → restore last Home position
+          setCurUser(homeMemUser);
+          setCurTopic(homeMemTopic);
+          setActiveTab("home");
+        } else {
+          // Already on Home → reset to users page (main home)
+          setCurUser(null);
+          setCurTopic(null);
+        }
+      } else {
+        // Leaving Home tab → save current position
+        if (activeTab === "home") {
+          setHomeMemUser(curUser);
+          setHomeMemTopic(curTopic);
+        }
+        setActiveTab(tabId);
+      }
+    };
+
+    return (
+      <div style={{
+        flexShrink:0, padding:"6px 14px 10px",
+        display:"flex", alignItems:"center", gap:10,
+      }}>
+        {/* Pill */}
+        <div style={{
+          flex:1, display:"flex", alignItems:"center",
+          backgroundColor:isDark ? "rgba(44,44,46,0.96)" : "rgba(255,255,255,0.96)",
+          backdropFilter:"blur(24px) saturate(200%)",
+          WebkitBackdropFilter:"blur(24px) saturate(200%)",
+          borderRadius:40, padding:"4px 8px",
+          boxShadow:isDark
+            ? "0 4px 24px rgba(0,0,0,0.55), 0 1px 4px rgba(0,0,0,0.4)"
+            : "0 4px 24px rgba(0,0,0,0.1), 0 1px 6px rgba(0,0,0,0.07)",
+          border:`0.5px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`,
+        }}>
+          {[
+            { id:"home",     icon:<Home size={20}/>,         label:"Home" },
+            { id:"today",    icon:<Sunrise size={20}/>,      label:"Today" },
+            { id:"calendar", icon:<CalendarDays size={20}/>, label:"Calendar" },
+            { id:"settings", icon:<Settings size={20}/>,     label:"Settings" },
+          ].map(tab => {
+            const active = activeTab === tab.id;
+            return (
+              <button key={tab.id} onClick={() => handleTabPress(tab.id)}
+                style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2,
+                  padding:"8px 0 7px", background:"none", border:"none", cursor:"pointer" }}>
+                <span style={{ color:active ? T.primary : T.muted }}>{tab.icon}</span>
+                <span style={{ fontSize:9, fontWeight:700, letterSpacing:0.2, color:active ? T.primary : T.muted }}>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        {/* FAB — only on task list screen */}
+        {showFab && (
+          <button onClick={openAdd}
+            style={{
+              width:52, height:52, borderRadius:26, flexShrink:0,
+              backgroundColor:T.primary, border:"none", cursor:"pointer",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              boxShadow:`0 4px 16px ${isDark ? "rgba(10,132,255,0.45)" : "rgba(0,122,255,0.38)"}`,
+            }}>
+            <Plus size={24} color="#fff"/>
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  // ── Onboarding ─────────────────────────────────────────────────────────────
+  const renderOnboarding = () => {
+    const done = () => setShowBoarding(false);
+    const steps = [
+      {
+        icon:"✅", title:"Welcome to Daily Tasks", subtitle:"Your personal task manager — built for focus and clarity.",
+        content:(
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {[["📁","Multiple Users","Manage tasks for yourself and others"],["📂","Topics","Group by area — Work, Personal, Projects"],["📋","Smart Tasks","Priorities, due dates, recurrence and subtasks"]].map(([ico,t,d]) => (
+              <div key={t} style={{ display:"flex", gap:14, alignItems:"flex-start", padding:"14px 16px", backgroundColor:T.cardAlt, borderRadius:14 }}>
+                <span style={{ fontSize:22, flexShrink:0 }}>{ico}</span>
+                <div><div style={{ color:T.text, fontWeight:600, fontSize:15 }}>{t}</div><div style={{ color:T.muted, fontSize:13, marginTop:3 }}>{d}</div></div>
               </div>
-              {!isEditing&&isExpanded&&(
-                <div style={{padding:'8px 10px 10px 36px',borderTop:`1px dashed ${T.border}`,backgroundColor:T.surface,display:'flex',flexDirection:'column',gap:5}}>
-                  {subtasks.map(sub=><div key={sub.id} style={{display:'flex',alignItems:'center',gap:7}}><button onClick={()=>toggleSubtask(task.id,sub.id)} style={{flexShrink:0,width:15,height:15,borderRadius:3,border:`1.5px solid ${sub.completed?T.success:T.border}`,backgroundColor:sub.completed?T.success:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{sub.completed&&<Check size={9} color="#fff"/>}</button><span style={{flex:1,fontSize:12,color:sub.completed?T.textMuted:T.text,textDecoration:sub.completed?'line-through':'none'}}>{sub.text}</span><button onClick={()=>deleteSubtask(task.id,sub.id)} style={{background:'none',border:'none',cursor:'pointer',padding:2}}><X size={10} color={T.textMuted}/></button></div>)}
-                  <div style={{display:'flex',gap:5,marginTop:2}}><input type="text" placeholder="Add subtask…" value={newSubtaskText[task.id]||''} onChange={e=>setNewSubtaskText(prev=>({...prev,[task.id]:e.target.value}))} onKeyDown={e=>{if(e.key==='Enter')addSubtask(task.id,newSubtaskText[task.id]||'');}} style={{...inp,flex:1,fontSize:11,padding:'4px 8px'}}/><button onClick={()=>addSubtask(task.id,newSubtaskText[task.id]||'')} style={{...primBtn(),padding:'4px 8px',fontSize:11}}><Plus size={11}/></button></div>
+            ))}
+          </div>
+        ),
+        primary:{ label:"Get Started →", action:() => setBoardStep(1) }, secondary:null, back:null,
+      },
+      {
+        icon:"🗂️", title:"How It Works", subtitle:"Three simple levels keep everything organised.",
+        content:(
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {[{c:"#3B82F6",l:"USER",e:"Alex",d:"A person whose tasks you manage"},{c:"#8B5CF6",l:"TOPIC",e:"Work Tasks",d:"A group of related tasks"},{c:"#10B981",l:"TASK",e:"Q4 Report",d:"A single action with priority and due date"}].map(({c,l,e,d},i) => (
+              <div key={l}>
+                <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 16px", backgroundColor:T.cardAlt, borderRadius:14 }}>
+                  <div style={{ width:38, height:38, borderRadius:10, backgroundColor:c+"22", border:`2px solid ${c}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    <span style={{ color:c, fontSize:11, fontWeight:800 }}>{l}</span>
+                  </div>
+                  <div><div style={{ color:T.text, fontWeight:600, fontSize:15 }}>"{e}"</div><div style={{ color:T.muted, fontSize:13 }}>{d}</div></div>
+                </div>
+                {i < 2 && <div style={{ textAlign:"center", color:T.muted, fontSize:18, margin:"2px 0" }}>↓</div>}
+              </div>
+            ))}
+          </div>
+        ),
+        primary:{ label:"Next →", action:() => setBoardStep(2) }, secondary:{ label:"← Back", action:() => setBoardStep(0) }, back:null,
+      },
+      {
+        icon:"🔔", title:"Stay on Top of Deadlines", subtitle:"Get notified when tasks are due.",
+        content:(
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            {notifOn ? (
+              <div style={{ padding:"20px 16px", backgroundColor:T.cardAlt, borderRadius:14, textAlign:"center" }}>
+                <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
+                <div style={{ color:T.success, fontWeight:700, fontSize:16 }}>Notifications enabled!</div>
+              </div>
+            ) : (
+              <div style={{ padding:16, backgroundColor:T.cardAlt, borderRadius:14, display:"flex", flexDirection:"column", gap:12 }}>
+                {[["🔴","Overdue, today and tomorrow","Highlighted in red"],["🟠","2 days remaining","Highlighted in orange"]].map(([dot,t,d]) => (
+                  <div key={t} style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ fontSize:18 }}>{dot}</span>
+                    <div><div style={{ color:T.text, fontSize:15, fontWeight:600 }}>{t}</div><div style={{ color:T.muted, fontSize:13 }}>{d}</div></div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ color:T.muted, fontSize:13, textAlign:"center", lineHeight:1.6 }}>Fires on app open. No account or server required.</div>
+          </div>
+        ),
+        primary:notifOn ? { label:"Enter App →", action:done } : { label:"Enable Notifications", action:async () => { await reqNotif(); done(); } },
+        secondary:{ label:"Skip for now", action:done }, back:{ label:"← Back", action:() => setBoardStep(1) },
+      },
+    ];
+    const step = steps[boardStep];
+    return (
+      <div style={{ flex:1, overflowY:"auto", padding:"20px 20px 0" }}>
+        <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:24, marginTop:8 }}>
+          {steps.map((_, i) => (
+            <div key={i} style={{ width:i === boardStep ? 24 : 7, height:7, borderRadius:4, transition:"all .25s", backgroundColor:i === boardStep ? T.primary : T.hint }}/>
+          ))}
+        </div>
+        <div style={{ textAlign:"center", marginBottom:24 }}>
+          <div style={{ fontSize:56, marginBottom:12 }}>{step.icon}</div>
+          <div style={{ fontSize:26, fontWeight:800, color:T.text, marginBottom:8, letterSpacing:-0.5 }}>{step.title}</div>
+          <div style={{ fontSize:15, color:T.muted, lineHeight:1.6, maxWidth:280, margin:"0 auto" }}>{step.subtitle}</div>
+        </div>
+        {step.content}
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginTop:24, paddingBottom:32 }}>
+          <button onClick={step.primary.action} style={S.primBtn({ borderRadius:16, fontSize:17 })}>{step.primary.label}</button>
+          {step.secondary && <button onClick={step.secondary.action} style={S.ghost({ padding:"10px", color:T.muted, fontSize:15 })}>{step.secondary.label}</button>}
+          {step.back      && <button onClick={step.back.action}      style={S.ghost({ padding:"8px",  color:T.muted, fontSize:14 })}>{step.back.label}</button>}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Today / Briefing ───────────────────────────────────────────────────────
+  const renderBriefing = () => {
+    const hr = new Date().getHours();
+    const greet = hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
+    const greetIcon = hr < 12 ? "🌅" : hr < 17 ? "☀️" : "🌙";
+    const { dueToday, overdue, doneYest } = briefing;
+    const { streak, weekData } = streakData;
+    const maxBar = Math.max(...weekData.map(d => d.count), 1);
+    const fmtEstimate = (mins) => {
+      if (!mins) return null;
+      if (mins < 60) return mins + "m";
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m > 0 ? h + "h " + m + "m" : h + "h";
+    };
+
+    return (
+      <div style={{ flex:1, overflowY:"auto" }}>
+        <div style={{ padding:"28px 20px 20px", backgroundColor:T.card, borderBottom:`0.5px solid ${T.sep}` }}>
+          <div style={{ fontSize:13, color:T.muted, marginBottom:4 }}>
+            {new Date().toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric" })}
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:32 }}>{greetIcon}</span>
+            <div style={{ flex:1, fontSize:28, fontWeight:800, color:T.text, letterSpacing:-0.5 }}>{greet}</div>
+            {urBtns()}
+          </div>
+        </div>
+
+        {/* v4: Streak + weekly bar chart */}
+        <div style={{ margin:"16px 16px 0", backgroundColor:T.card, borderRadius:16, padding:"16px" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <Flame size={18} color={streak > 0 ? T.warn : T.muted}/>
+              <span style={{ fontSize:15, fontWeight:700, color:T.text }}>{streak > 0 ? streak + " day streak" : "Start your streak today!"}</span>
+            </div>
+            <BarChart2 size={16} color={T.muted}/>
+          </div>
+          <div style={{ display:"flex", alignItems:"flex-end", gap:6, height:48 }}>
+            {weekData.map(({ ds, day, count }) => {
+              const isToday = ds === new Date().toISOString().split("T")[0];
+              const barH = count > 0 ? Math.max(8, Math.round((count / maxBar) * 44)) : 4;
+              return (
+                <div key={ds} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                  <div style={{ width:"100%", height:barH, borderRadius:4, backgroundColor:isToday ? T.primary : count > 0 ? T.success : T.sep, transition:"height .3s" }}/>
+                  <span style={{ fontSize:9, color:isToday ? T.primary : T.muted, fontWeight:isToday ? 700 : 400 }}>{day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Stat cards */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, padding:"12px 16px 0" }}>
+          {[
+            { label:"Overdue",        v:overdue.length,  c:overdue.length > 0  ? T.danger  : T.success },
+            { label:"Due Today",      v:dueToday.length, c:dueToday.length > 0 ? T.primary : T.success },
+            { label:"Done Yesterday", v:doneYest,        c:T.success },
+          ].map(({ label, v, c }) => (
+            <div key={label} style={{ backgroundColor:T.card, borderRadius:14, padding:"12px 10px", textAlign:"center" }}>
+              <div style={{ fontSize:26, fontWeight:800, color:c }}>{v}</div>
+              <div style={{ fontSize:11, color:T.muted, marginTop:2, lineHeight:1.3 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* v4: Daily time estimate */}
+        {todayEstimate > 0 && (
+          <div style={{ margin:"12px 16px 0", backgroundColor:T.card, borderRadius:14, padding:"12px 16px", display:"flex", alignItems:"center", gap:10 }}>
+            <Timer size={16} color={T.primary}/>
+            <div>
+              <span style={{ fontSize:14, fontWeight:600, color:T.text }}>
+                {fmtEstimate(todayEstimate)} committed today
+              </span>
+              <div style={{ fontSize:12, color:T.muted, marginTop:2 }}>Based on tasks with time estimates due today</div>
+            </div>
+          </div>
+        )}
+
+        {/* Overdue */}
+        {overdue.length > 0 && (
+          <div style={{ padding:"16px 16px 0" }}>
+            <div style={S.sectionLabel(T.danger)}>⚠ Overdue</div>
+            <div style={S.card()}>
+              {overdue.map((task, i) => (
+                <div key={task.userId + "-" + task.id}
+                  style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", borderBottom:i < overdue.length - 1 ? `0.5px solid ${T.sep}` : "none" }}>
+                  {task.pinned && <Star size={12} color={T.star} fill={T.star}/>}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:15, fontWeight:600, color:T.danger, wordBreak:"break-word" }}>{task.text}</div>
+                    <div style={{ fontSize:12, color:T.muted, marginTop:2 }}>{task.userName} · {task.topicName}{task.dueTime ? " · " + fmtTime(task.dueTime) : ""}</div>
+                  </div>
+                  {task.estimate && <span style={{ fontSize:11, color:T.muted, backgroundColor:T.cardAlt, borderRadius:6, padding:"2px 7px" }}>{EST_LABELS[task.estimate]}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Due today */}
+        {dueToday.length > 0 && (
+          <div style={{ padding:"16px 16px 0" }}>
+            <div style={S.sectionLabel(T.primary)}>📋 Due Today</div>
+            <div style={S.card()}>
+              {[...dueToday].sort((a, b) => {
+                if (!a.dueTime) return 1;
+                if (!b.dueTime) return -1;
+                return a.dueTime.localeCompare(b.dueTime);
+              }).map((task, i) => (
+                <div key={task.userId + "-" + task.id}
+                  style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", borderBottom:i < dueToday.length - 1 ? `0.5px solid ${T.sep}` : "none" }}>
+                  {task.pinned && <Star size={12} color={T.star} fill={T.star}/>}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:15, fontWeight:600, color:T.text, wordBreak:"break-word" }}>{task.text}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
+                      <span style={{ fontSize:12, color:T.muted }}>{task.userName} · {task.topicName}</span>
+                      {task.dueTime && (
+                        <span style={{ display:"flex", alignItems:"center", gap:3, color:T.primary, fontSize:12, fontWeight:600 }}>
+                          <Clock size={10}/>{fmtTime(task.dueTime)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {task.estimate && <span style={{ fontSize:11, color:T.muted, backgroundColor:T.cardAlt, borderRadius:6, padding:"2px 7px" }}>{EST_LABELS[task.estimate]}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {dueToday.length === 0 && overdue.length === 0 && (
+          <div style={{ textAlign:"center", padding:"40px 20px" }}>
+            <div style={{ fontSize:48, marginBottom:12 }}>🎉</div>
+            <div style={{ fontSize:20, fontWeight:700, color:T.text }}>All clear!</div>
+            <div style={{ fontSize:15, color:T.muted, marginTop:6 }}>Nothing overdue or due today.</div>
+          </div>
+        )}
+        <div style={{ height:24 }}/>
+      </div>
+    );
+  };
+
+  // ── Calendar ───────────────────────────────────────────────────────────────
+  const renderCalendar = () => {
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const agendaLabel = (dt, ds) => {
+      const diff = Math.ceil((new Date(ds) - new Date(todayStr)) / 86400000);
+      return {
+        sub:diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : diff === -1 ? "Yesterday" : dt.toLocaleDateString("en-US", { weekday:"long" }),
+        isToday:diff === 0, isPast:diff < 0,
+      };
+    };
+    const PriBadge = ({ p }) => {
+      const m = { urgent:{bg:T.rRedBg,tx:T.rRedTx,l:"Urgent"}, high:{bg:T.rRedBg,tx:T.rRedTx,l:"High"}, normal:{bg:T.primaryDim,tx:T.primary,l:"Normal"}, low:{bg:T.rOrgBg,tx:T.rOrgTx,l:"Low"} };
+      const s = m[p] || m.normal;
+      return <span style={{ backgroundColor:s.bg, color:s.tx, fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:20, textTransform:"uppercase", whiteSpace:"nowrap" }}>{s.l}</span>;
+    };
+    const firstDay = new Date(calYear, calMonth, 1).getDay();
+    const dim = new Date(calYear, calMonth + 1, 0).getDate();
+    const cells = [...Array(firstDay).fill(null), ...Array.from({ length:dim }, (_, i) => i + 1)];
+    const toDS = (day) => calYear + "-" + String(calMonth + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+    const prevM = () => { if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); } else setCalMonth(m => m - 1); setCalSel(null); };
+    const nextM = () => { if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); } else setCalMonth(m => m + 1); setCalSel(null); };
+
+    return (
+      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0 }}>
+        {/* Sticky header */}
+        <div style={{ backgroundColor:T.card, borderBottom:`0.5px solid ${T.sep}`, flexShrink:0 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 16px 8px" }}>
+            <div style={{ fontSize:22, fontWeight:800, color:T.text, letterSpacing:-0.3 }}>
+              {calView === "month" ? MONTHS[calMonth] + " " + calYear : today.toLocaleDateString("en-US", { month:"long", year:"numeric" })}
+            </div>
+            <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+              {urBtns()}
+              <div style={{ display:"flex", backgroundColor:T.cardAlt, borderRadius:20, padding:3, gap:2 }}>
+                {[["agenda","Agenda"],["month","Month"]].map(([v, l]) => (
+                  <button key={v} onClick={() => setCalView(v)}
+                    style={{ padding:"5px 12px", borderRadius:17, border:"none", cursor:"pointer", transition:"all .15s",
+                      backgroundColor:calView === v ? T.primary : "transparent",
+                      color:calView === v ? "#fff" : T.muted, fontSize:12, fontWeight:600 }}>{l}</button>
+                ))}
+              </div>
+              {calView === "month" && (
+                <div style={{ display:"flex", gap:4 }}>
+                  <button onClick={prevM} style={S.ghost({ padding:4 })}><ChevronLeft size={20}/></button>
+                  <button onClick={nextM} style={S.ghost({ padding:4 })}><ChevronRight size={20}/></button>
                 </div>
               )}
             </div>
-          );
-        })}
+          </div>
+          {calView === "agenda" && (
+            <div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", padding:"0 8px" }}>
+                {["Su","Mo","Tu","We","Th","Fr","Sa"].map(n => (
+                  <div key={n} style={{ textAlign:"center", fontSize:10, fontWeight:700, color:T.muted, padding:"4px 0" }}>{n}</div>
+                ))}
+              </div>
+              <div ref={stripRef} style={{ display:"flex", overflowX:"auto", padding:"4px 8px 10px", gap:3, scrollbarWidth:"none" }}>
+                {agendaDays.map(({ ds, dt }) => {
+                  const pc = datePriColor(ds);
+                  const isTod = ds === todayStr, isSel = ds === calSel;
+                  const cnt = allDated.filter(t => t.dueDate === ds).length;
+                  return (
+                    <button key={ds} data-today={isTod ? "true" : "false"} onClick={() => setCalSel(ds)}
+                      style={{ flexShrink:0, width:44, display:"flex", flexDirection:"column", alignItems:"center", gap:2, padding:"5px 0 4px", borderRadius:12, border:"none", cursor:"pointer", outline:"none",
+                        backgroundColor:isSel ? T.primary : isTod ? T.primaryDim : pc ? pc.bg : "transparent" }}>
+                      <span style={{ fontSize:10, fontWeight:600, color:isSel ? "#fff" : isTod ? T.primary : pc ? pc.tx : T.muted }}>
+                        {dt.toLocaleDateString("en-US",{weekday:"short"}).charAt(0)}
+                      </span>
+                      <div style={{ width:32, height:32, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center",
+                        border:!isSel && isTod ? `2px solid ${T.primary}` : "none",
+                        backgroundColor:isSel ? T.primary : "transparent" }}>
+                        <span style={{ fontSize:15, fontWeight:isTod||isSel ? 800 : 400, color:isSel ? "#fff" : isTod ? T.primary : pc ? pc.tx : T.text }}>{dt.getDate()}</span>
+                      </div>
+                      {cnt > 0 && <span style={{ width:5, height:5, borderRadius:"50%", backgroundColor:isSel ? "#fff" : pc ? pc.dt : T.muted }}/>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Scrollable agenda list */}
+        {calView === "agenda" && (
+          <div style={{ flex:1, overflowY:"auto" }}>
+            {agendaDays.filter(d => d.tasks.length > 0).length === 0 ? (
+              <div style={{ textAlign:"center", padding:"60px 20px", color:T.muted, fontSize:15 }}>No upcoming tasks with due dates</div>
+            ) : agendaDays.map(({ ds, dt, tasks }) => {
+              if (!tasks.length) return null;
+              const { sub, isToday, isPast } = agendaLabel(dt, ds);
+              return (
+                <div key={ds}>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:10, padding:"16px 16px 8px" }}>
+                    <span style={{ fontSize:26, fontWeight:800, minWidth:38, color:isToday ? T.primary : isPast ? T.muted : T.text }}>{dt.getDate()}</span>
+                    <span style={{ fontSize:15, fontWeight:700, color:isToday ? T.primary : isPast ? T.muted : T.text }}>{dt.toLocaleDateString("en-US",{month:"short"})}</span>
+                    <span style={{ fontSize:13, color:isToday ? T.primary : T.muted }}>{sub}</span>
+                    <span style={{ marginLeft:"auto", fontSize:12, color:T.muted }}>{tasks.length} task{tasks.length > 1 ? "s" : ""}</span>
+                  </div>
+                  <div style={{ backgroundColor:T.card, borderRadius:16, margin:"0 12px 12px", overflow:"hidden" }}>
+                    {tasks.map((task, i) => (
+                      <div key={task.userId + "-" + task.id}
+                        style={{ display:"flex", gap:12, padding:"12px 16px", borderBottom:i < tasks.length-1 ? `0.5px solid ${T.sep}` : "none" }}>
+                        <div style={{ width:3, borderRadius:3, flexShrink:0, alignSelf:"stretch",
+                          backgroundColor:task.priority==="urgent"||task.priority==="high" ? T.rRedDt : task.priority==="normal" ? T.primary : T.rOrgDt }}/>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:2 }}>
+                            {task.pinned && <Star size={9} color={T.star} fill={T.star}/>}
+                            <span style={{ fontSize:11, color:T.muted }}>{task.userName} · {task.topicName}</span>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+                            <span style={{ fontSize:15, fontWeight:600, color:T.text, flex:1, wordBreak:"break-word" }}>{task.text}</span>
+                            <PriBadge p={task.priority}/>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+                            {task.dueTime && (
+                              <span style={{ display:"flex", alignItems:"center", gap:3, fontSize:12, color:T.primary, fontWeight:600 }}>
+                                <Clock size={10}/>{fmtTime(task.dueTime)}
+                              </span>
+                            )}
+                            {task.estimate && <span style={{ fontSize:11, color:T.muted }}>{EST_LABELS[task.estimate]}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Month view */}
+        {calView === "month" && (
+          <div style={{ flex:1, overflowY:"auto" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", backgroundColor:T.card, padding:"4px 8px 0" }}>
+              {["S","M","T","W","T","F","S"].map((d, i) => (
+                <div key={i} style={{ textAlign:"center", padding:"4px 0", fontSize:11, fontWeight:700, color:T.muted }}>{d}</div>
+              ))}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, padding:8, backgroundColor:T.systemBg }}>
+              {cells.map((day, idx) => {
+                if (!day) return <div key={"e-"+idx}/>;
+                const ds = toDS(day), pc = datePriColor(ds);
+                const isTod = ds === todayStr, isSel = ds === calSel;
+                const cnt = allDated.filter(t => t.dueDate === ds).length;
+                return (
+                  <button key={ds} onClick={() => setCalSel(isSel ? null : ds)}
+                    style={{ position:"relative", aspectRatio:"1", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                      borderRadius:12, cursor:"pointer", outline:"none", padding:2,
+                      border:isSel ? `2px solid ${T.primary}` : pc ? `1.5px solid ${pc.bd}` : "1.5px solid transparent",
+                      backgroundColor:isSel ? T.primaryDim : pc ? pc.bg : T.card }}>
+                    {isTod && <div style={{ position:"absolute", inset:2, borderRadius:10, border:`2px solid ${T.primary}`, opacity:0.6, pointerEvents:"none" }}/>}
+                    <span style={{ fontSize:14, fontWeight:isTod ? 800 : 400, color:pc ? pc.tx : T.text, lineHeight:1 }}>{day}</span>
+                    {cnt > 0 && <span style={{ fontSize:9, color:pc ? pc.tx : T.muted, marginTop:1 }}>{cnt}</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display:"flex", gap:12, alignItems:"center", padding:"8px 16px", backgroundColor:T.card, borderTop:`0.5px solid ${T.sep}`, flexWrap:"wrap" }}>
+              {[{c:T.rRedDt,l:"Urgent/High"},{c:T.primary,l:"Normal"},{c:T.rOrgDt,l:"Low"}].map(({c,l}) => (
+                <div key={l} style={{ display:"flex", alignItems:"center", gap:5 }}>
+                  <span style={{ width:8, height:8, borderRadius:"50%", backgroundColor:c }}/><span style={{ fontSize:11, color:T.muted }}>{l}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding:"12px 12px 24px" }}>
+              {!calSel ? (
+                <div style={{ textAlign:"center", padding:"32px 0", color:T.muted, fontSize:14 }}>Tap a date to see its tasks</div>
+              ) : (() => {
+                const tasks = allDated.filter(t => t.dueDate === calSel);
+                if (!tasks.length) return <div style={{ textAlign:"center", padding:"24px 0", color:T.muted, fontSize:14 }}>No tasks on {new Date(calSel+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>;
+                return (
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:8 }}>
+                      {new Date(calSel+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
+                      <span style={{ color:T.muted, fontWeight:400, marginLeft:6 }}>· {tasks.length} task{tasks.length > 1 ? "s" : ""}</span>
+                    </div>
+                    <div style={S.card()}>
+                      {tasks.map((task, i) => (
+                        <div key={task.userId+"-"+task.id} style={{ padding:"12px 16px", display:"flex", gap:12, borderBottom:i < tasks.length-1 ? `0.5px solid ${T.sep}` : "none" }}>
+                          <div style={{ width:3, borderRadius:3, flexShrink:0, alignSelf:"stretch",
+                            backgroundColor:task.priority==="urgent"||task.priority==="high" ? T.rRedDt : task.priority==="normal" ? T.primary : T.rOrgDt }}/>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:11, color:T.muted, marginBottom:2 }}>{task.userName} · {task.topicName}</div>
+                            <div style={{ fontSize:15, fontWeight:600, color:T.text, wordBreak:"break-word" }}>{task.text}</div>
+                            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+                              {task.dueTime && <span style={{ display:"flex", alignItems:"center", gap:3, color:T.primary, fontSize:12, fontWeight:600 }}><Clock size={10}/>{fmtTime(task.dueTime)}</span>}
+                              {task.estimate && <span style={{ fontSize:11, color:T.muted }}>{EST_LABELS[task.estimate]}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
       </div>
-      <div style={{padding:'8px 12px',borderTop:`1px solid ${T.border}`,backgroundColor:T.surface}}>
-        {showOpts&&<div style={{marginBottom:8,padding:10,...surf,display:'flex',flexDirection:'column',gap:6}}><textarea value={newDesc} onChange={e=>setNewDesc(e.target.value)} placeholder="Description (optional)…" rows={2} style={{...inp,resize:'vertical',fontSize:12}}/><div style={{display:'flex',gap:5}}><input type="date" value={newDue} onChange={e=>setNewDue(e.target.value)} style={{...inp,flex:1,fontSize:11,padding:'6px 7px'}}/><select value={newPriority} onChange={e=>setNewPriority(e.target.value)} style={{...inp,width:'auto',fontSize:11,padding:'6px 7px'}}><option value="urgent">Urgent</option><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select><select value={newRec} onChange={e=>setNewRec(e.target.value)} style={{...inp,width:'auto',fontSize:11,padding:'6px 7px'}}><option value="none">No repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></div></div>}
-        <div style={{display:'flex',gap:6}}>
-          <button onClick={clearAll} disabled={!currentTopicData?.tasks?.length} style={primBtn({backgroundColor:T.urgencyRedDot,padding:'7px 10px',opacity:currentTopicData?.tasks?.length?1:.4})} title="Clear all"><Trash2 size={13}/></button>
-          <input ref={newTaskRef} type="text" placeholder="Add a task… (Enter)" value={newText} onChange={e=>setNewText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')addTask();}} style={{...inp,flex:1,fontSize:13}}/>
-          <button onClick={()=>setShowOpts(v=>!v)} style={primBtn({padding:'7px 10px',backgroundColor:(newDue||newDesc||newPriority!=='normal'||newRec!=='none')?T.primary:T.textMuted})} title="Task options"><Calendar size={13}/></button>
-          <button onClick={addTask} disabled={!newText.trim()} style={primBtn({padding:'7px 12px',opacity:newText.trim()?1:.4})}><Plus size={15}/></button>
+    );
+  };
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+  const renderSettings = () => {
+    return (
+      <div style={{ flex:1, overflowY:"auto", padding:"20px 16px" }}>
+        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:20 }}>
+          <div style={{ fontSize:28, fontWeight:800, color:T.text, letterSpacing:-0.5 }}>Settings</div>
+          {urBtns()}
+        </div>
+        <div style={S.sectionLabel()}>Notifications</div>
+        <div style={{ ...S.card(), marginBottom:20 }}>
+          <div style={S.row()}>
+            <div style={{ flex:1 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, color:T.text, fontSize:15, fontWeight:500 }}>
+                {notifOn ? <Bell size={16} color={T.success}/> : <BellOff size={16} color={T.muted}/>} Notifications
+              </div>
+              <div style={{ fontSize:13, color:T.muted, marginTop:2 }}>{notifOn ? "Enabled — fires for due tasks on open" : "Tap to enable reminders"}</div>
+            </div>
+            {!notifOn && <button onClick={reqNotif} style={{ backgroundColor:T.primary, color:"#fff", border:"none", borderRadius:10, padding:"8px 14px", fontSize:13, fontWeight:600, cursor:"pointer" }}>Enable</button>}
+          </div>
+        </div>
+        <div style={S.sectionLabel()}>Appearance</div>
+        <div style={{ ...S.card(), marginBottom:20 }}>
+          <div style={{ display:"flex", gap:8, padding:"14px 16px" }}>
+            {["light","dark"].map(t => (
+              <button key={t} onClick={() => setTheme(t)}
+                style={{ flex:1, padding:"11px", borderRadius:12, cursor:"pointer",
+                  border:`2px solid ${theme === t ? T.primary : T.sep}`,
+                  backgroundColor:theme === t ? T.primaryDim : T.cardAlt,
+                  color:theme === t ? T.primary : T.text,
+                  fontSize:14, fontWeight:theme === t ? 700 : 400 }}>
+                {t === "light" ? "☀️ Light" : "🌙 Dark"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={S.sectionLabel()}>Urgency Colors</div>
+        <div style={{ ...S.card(), marginBottom:20 }}>
+          <div style={S.row({ justifyContent:"space-between" })}>
+            <div>
+              <div style={{ fontSize:15, fontWeight:500, color:T.text }}>Due-Date Highlighting</div>
+              <div style={{ fontSize:13, color:T.muted, marginTop:2 }}>🔴 Today/overdue  ·  🟠 2 days left</div>
+            </div>
+            <div onClick={() => setShowUrgency(v => !v)}
+              style={{ width:50, height:30, borderRadius:15, cursor:"pointer", position:"relative", flexShrink:0,
+                backgroundColor:showUrgency ? T.primary : T.cardAlt2 }}>
+              <span style={{ position:"absolute", top:3, left:showUrgency ? 23 : 3, width:24, height:24,
+                borderRadius:"50%", backgroundColor:"#fff", boxShadow:"0 1px 4px rgba(0,0,0,0.25)", transition:"left .2s" }}/>
+            </div>
+          </div>
+          {showUrgency && (
+            <div style={{ padding:"0 16px 14px" }}>
+              <div style={S.sep()}/>
+              <div style={{ paddingTop:12, display:"flex", flexDirection:"column", gap:10 }}>
+                {[{ dot:T.rRedDt,  bg:T.rRedBg, bd:T.rRedBd, label:"Overdue, due today, or due tomorrow" },
+                  { dot:T.rOrgDt, bg:T.rOrgBg, bd:T.rOrgBd, label:"2 days remaining" }].map(({ dot, bg, bd, label }) => (
+                  <div key={label} style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ width:24, height:16, borderRadius:5, backgroundColor:bg, border:`1.5px solid ${bd}`, flexShrink:0 }}/>
+                    <span style={{ width:8, height:8, borderRadius:"50%", backgroundColor:dot, flexShrink:0 }}/>
+                    <span style={{ color:T.text, fontSize:13 }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div style={S.sectionLabel()}>Data</div>
+        <div style={{ ...S.card(), marginBottom:32 }}>
+          <button onClick={doExport} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", background:"none", border:"none", cursor:"pointer" }}>
+            <span style={{ fontSize:15, color:T.text }}>Export Backup</span><Download size={16} color={T.primary}/>
+          </button>
+          <div style={S.sep()}/>
+          <button onClick={doExport} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", background:"none", border:"none", cursor:"pointer" }}>
+            <span style={{ fontSize:15, color:T.text }}>Import Backup</span><Upload size={16} color={T.primary}/>
+          </button>
+          <div style={S.sep()}/>
+          <div style={{ display:"flex", justifyContent:"flex-end", padding:"12px 16px" }}>
+            <span style={{ fontSize:12, color:T.muted }}>{saveStatus === "saving" ? "Saving…" : "Saved ✓"}</span>
+          </div>
         </div>
       </div>
+    );
+  };
+
+  // ── Users ──────────────────────────────────────────────────────────────────
+  const renderUsers = () => {
+    return (
+      <div style={{ flex:1, overflowY:"auto" }}>
+        <div style={{ padding:"28px 20px 16px", backgroundColor:T.card, borderBottom:`0.5px solid ${T.sep}` }}>
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
+            <div style={{ fontSize:32, fontWeight:800, color:T.text, letterSpacing:-0.5 }}>Daily Tasks</div>
+            <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+              {urBtns()}
+              {/* v4: Global search button */}
+              <button onClick={() => setGlobalSearch(true)} style={S.ghost({ padding:6, color:T.muted })}>
+                <Search size={18}/>
+              </button>
+            </div>
+          </div>
+          <div style={{ fontSize:14, color:T.muted, marginTop:3 }}>
+            {new Date().toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric" })}
+          </div>
+        </div>
+        <div style={{ padding:"16px 16px 0" }}>
+          <div style={S.sectionLabel()}>Profiles</div>
+          <div style={S.card()}>
+            {Object.values(users).map((user, i) => {
+              const ul = userUrg(user.topics);
+              const isLast = i === Object.values(users).length - 1 && !addUser;
+              return (
+                <div key={user.id} style={{ borderBottom:isLast ? "none" : `0.5px solid ${T.sep}` }}>
+                  {editUserId === user.id ? (
+                    <div style={{ padding:"10px 16px" }}>
+                      <input ref={editURef} defaultValue={user.name} style={S.inp({ padding:"10px 12px", fontSize:15 })}
+                        onBlur={e => saveUserName(user.id, e.target.value)}
+                        onKeyDown={e => { if (e.key==="Enter") saveUserName(user.id, e.target.value); if (e.key==="Escape") setEditUserId(null); }}/>
+                    </div>
+                  ) : (
+                    <div style={S.row()}>
+                      <div style={{ width:40, height:40, borderRadius:20, backgroundColor:T.primaryDim, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <span style={{ fontSize:16, fontWeight:700, color:T.primary }}>{user.name.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <div style={{ flex:1, minWidth:0, cursor:"pointer" }} onClick={() => setCurUser(user.id)}>
+                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          <span style={{ fontSize:16, fontWeight:600, color:T.text }}>{user.name}</span>
+                          {ul !== "none" && <span style={{ width:7, height:7, borderRadius:"50%", backgroundColor:ul==="red" ? T.rRedDt : T.rOrgDt }}/>}
+                        </div>
+                        <div style={{ fontSize:13, color:T.muted, marginTop:2 }}>
+                          {Object.keys(user.topics).length} topics · {Object.values(user.topics).reduce((a,tp) => a+tp.tasks.length, 0)} tasks
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:4 }}>
+                        <button onClick={() => setEditUserId(user.id)} style={S.ghost({ padding:6, color:T.muted })}><Edit3 size={15}/></button>
+                        {Object.keys(users).length > 1 && <button onClick={() => deleteUser(user.id)} style={S.ghost({ padding:6, color:T.danger })}><Trash2 size={15}/></button>}
+                      </div>
+                      <ChevronRight size={16} color={T.hint} style={{ cursor:"pointer" }} onClick={() => setCurUser(user.id)}/>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {!addUser ? (
+              <div style={{ borderTop:`0.5px solid ${T.sep}` }}>
+                <button onClick={() => setAddUser(true)}
+                  style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"14px 16px", background:"none", border:"none", cursor:"pointer", color:T.primary, fontSize:15, fontWeight:500 }}>
+                  <div style={{ width:28, height:28, borderRadius:14, backgroundColor:T.primary, display:"flex", alignItems:"center", justifyContent:"center" }}><Plus size={16} color="#fff"/></div>
+                  Add Profile
+                </button>
+              </div>
+            ) : (
+              <div style={{ borderTop:`0.5px solid ${T.sep}`, padding:"10px 16px", display:"flex", gap:8 }}>
+                <input ref={newURef} value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="Name"
+                  style={S.inp({ flex:1, padding:"10px 12px", fontSize:15 })}
+                  onKeyDown={e => { if (e.key==="Enter") doAddUser(); if (e.key==="Escape") { setAddUser(false); setNewUserName(""); } }}/>
+                <button onClick={doAddUser} disabled={!newUserName.trim()}
+                  style={{ backgroundColor:T.primary, color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", opacity:newUserName.trim() ? 1 : 0.4 }}>Add</button>
+                <button onClick={() => { setAddUser(false); setNewUserName(""); }} style={S.ghost({ color:T.muted })}>Cancel</button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ height:24 }}/>
+      </div>
+    );
+  };
+
+  // ── Topics ─────────────────────────────────────────────────────────────────
+  const renderTopics = () => {
+    const topicList = Object.values(curUserData.topics);
+    return (
+      <div style={{ flex:1, overflowY:"auto" }}>
+        <div style={{ padding:"16px 16px 0" }}>
+          <div style={S.sectionLabel()}>Topics</div>
+          <div style={S.card()}>
+            {topicList.map((tp, i) => {
+              const tl = topicUrg(tp.tasks);
+              const done = tp.tasks.filter(t => t.completed).length;
+              const active = tp.tasks.filter(t => !t.completed).length;
+              const isLast = i === topicList.length - 1 && !addTopic;
+              return (
+                <div key={tp.id} style={{ borderBottom:isLast ? "none" : `0.5px solid ${T.sep}` }}>
+                  {editTopicId === tp.id ? (
+                    <div style={{ padding:"10px 16px" }}>
+                      <input ref={editTRef} defaultValue={tp.name} style={S.inp({ padding:"10px 12px", fontSize:15 })}
+                        onBlur={e => saveTopicName(tp.id, e.target.value)}
+                        onKeyDown={e => { if (e.key==="Enter") saveTopicName(tp.id, e.target.value); if (e.key==="Escape") setEditTopicId(null); }}/>
+                    </div>
+                  ) : (
+                    <div style={S.row()}>
+                      <div style={{ width:40, height:40, borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                        backgroundColor:tl==="red" ? T.rRedBg : tl==="orange" ? T.rOrgBg : T.primaryDim }}>
+                        <ListChecks size={18} color={tl==="red" ? T.rRedDt : tl==="orange" ? T.rOrgDt : T.primary}/>
+                      </div>
+                      <div style={{ flex:1, minWidth:0, cursor:"pointer" }} onClick={() => setCurTopic(tp.id)}>
+                        <div style={{ fontSize:16, fontWeight:600, color:T.text }}>{tp.name}</div>
+                        <div style={{ fontSize:13, color:T.muted, marginTop:2 }}>{active} active · {done} done</div>
+                      </div>
+                      <div style={{ display:"flex", gap:4 }}>
+                        <button onClick={() => setEditTopicId(tp.id)} style={S.ghost({ padding:6, color:T.muted })}><Edit3 size={15}/></button>
+                        <button onClick={() => deleteTopic(tp.id)} style={S.ghost({ padding:6, color:T.danger })}><Trash2 size={15}/></button>
+                      </div>
+                      <ChevronRight size={16} color={T.hint} style={{ cursor:"pointer" }} onClick={() => setCurTopic(tp.id)}/>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {topicList.length === 0 && <div style={{ padding:24, textAlign:"center", color:T.muted, fontSize:14 }}>No topics yet</div>}
+            {!addTopic ? (
+              <div style={{ borderTop:topicList.length > 0 ? `0.5px solid ${T.sep}` : "none" }}>
+                <button onClick={() => setAddTopic(true)}
+                  style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"14px 16px", background:"none", border:"none", cursor:"pointer", color:T.primary, fontSize:15, fontWeight:500 }}>
+                  <div style={{ width:28, height:28, borderRadius:14, backgroundColor:T.primary, display:"flex", alignItems:"center", justifyContent:"center" }}><Plus size={16} color="#fff"/></div>
+                  New Topic
+                </button>
+              </div>
+            ) : (
+              <div style={{ borderTop:`0.5px solid ${T.sep}`, padding:"10px 16px", display:"flex", gap:8 }}>
+                <input ref={newTRef} value={newTopicTxt} onChange={e => setNewTopicTxt(e.target.value)} placeholder="Topic name"
+                  style={S.inp({ flex:1, padding:"10px 12px", fontSize:15 })}
+                  onKeyDown={e => { if (e.key==="Enter") doAddTopic(); if (e.key==="Escape") { setAddTopic(false); setNewTopicTxt(""); } }}/>
+                <button onClick={doAddTopic} disabled={!newTopicTxt.trim()}
+                  style={{ backgroundColor:T.primary, color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", opacity:newTopicTxt.trim() ? 1 : 0.4 }}>Add</button>
+                <button onClick={() => { setAddTopic(false); setNewTopicTxt(""); }} style={S.ghost({ color:T.muted })}>Cancel</button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ height:24 }}/>
+      </div>
+    );
+  };
+
+  // ── v4: SwipeRow prop bundle (component lives outside App) ────────────────
+  const swipeProps = {
+    T, dragId, setDragId, setDragOverId, reorderTasks,
+    expandSubs, setExpandSubs, subInputs, setSubInputs,
+    addSub, deleteSub, toggleSub, toggleTask, setCtxTask,
+    onDelete: deleteTask,
+  };
+
+  // ── Tasks screen ───────────────────────────────────────────────────────────
+  const renderTasks = () => {
+    const incomplete = filteredTasks.filter(t => !t.completed);
+    const completed  = filteredTasks.filter(t => t.completed);
+    const pinned  = incomplete.filter(t => t.pinned);
+    const regular = incomplete.filter(t => !t.pinned);
+    const total = curTopicData.tasks.length;
+    const doneCount = curTopicData.tasks.filter(t => t.completed).length;
+    const progress = total > 0 ? (doneCount / total) * 100 : 0;
+    let rowNum = 0;
+
+    // v4: total estimated time for current topic (incomplete tasks only)
+    const topicEstMins = curTopicData.tasks.reduce((acc, t) => {
+      if (!t.completed && t.estimate) return acc + parseInt(t.estimate);
+      return acc;
+    }, 0);
+    const fmtEst = (m) => { if (!m) return null; if (m < 60) return m + "m"; const h = Math.floor(m/60); const rm = m%60; return rm > 0 ? h + "h " + rm + "m" : h + "h"; };
+
+    return (
+      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, position:"relative" }}>
+        <div style={{ height:3, backgroundColor:T.sep, flexShrink:0 }}>
+          <div style={{ height:3, width:progress + "%", backgroundColor:T.primary, transition:"width .5s ease" }}/>
+        </div>
+
+        {showSearch && (
+          <div style={{ padding:"8px 16px", backgroundColor:T.card, borderBottom:`0.5px solid ${T.sep}`, flexShrink:0 }}>
+            <div style={{ position:"relative" }}>
+              <Search size={14} color={T.muted} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }}/>
+              <input autoFocus placeholder="Search in topic…" onChange={e => debSearch(e.target.value)}
+                style={S.inp({ paddingLeft:32, fontSize:14, padding:"9px 12px 9px 32px" })}/>
+            </div>
+          </div>
+        )}
+
+        {/* v4: time estimate banner for topic */}
+        {topicEstMins > 0 && (
+          <div style={{ padding:"6px 16px", backgroundColor:T.primaryDim, borderBottom:`0.5px solid ${T.sep}`, flexShrink:0, display:"flex", alignItems:"center", gap:6 }}>
+            <Timer size={13} color={T.primary}/>
+            <span style={{ fontSize:12, color:T.primary, fontWeight:600 }}>{fmtEst(topicEstMins)} of work remaining in this topic</span>
+          </div>
+        )}
+
+        <div style={{ display:"flex", gap:8, padding:"10px 16px", overflowX:"auto", backgroundColor:T.card, borderBottom:`0.5px solid ${T.sep}`, scrollbarWidth:"none", flexShrink:0 }}>
+          {[["all","All"],["pinned","⭐ Pinned"],["urgent","🔴 Urgent"],["normal","Normal"]].map(([f, l]) => (
+            <button key={f} onClick={() => setFilterPill(f)} style={S.pill(filterPill === f)}>{l}</button>
+          ))}
+        </div>
+
+        <div style={{ flex:1, overflowY:"auto" }}>
+          {pinned.length > 0 && (
+            <div style={{ marginTop:16, paddingBottom:4 }}>
+              <div style={{ ...S.sectionLabel(T.star), display:"flex", alignItems:"center", gap:5, marginLeft:16 }}>
+                <Star size={10} fill={T.star} color={T.star}/> Pinned
+              </div>
+              <div style={{ ...S.card(), margin:"0 12px" }}>
+                {pinned.map((t, i) => { rowNum++; return <SwipeRow key={t.id} task={t} rowNum={rowNum} isLast={i===pinned.length-1} isDragging={dragId===t.id} isDragOver={dragOverId===t.id} {...swipeProps}/>; })}
+              </div>
+            </div>
+          )}
+          {regular.length > 0 && (
+            <div style={{ marginTop:16, paddingBottom:4 }}>
+              {pinned.length > 0 && <div style={{ ...S.sectionLabel(), marginLeft:16 }}>Tasks</div>}
+              <div style={{ ...S.card(), margin:"0 12px" }}>
+                {regular.map((t, i) => { rowNum++; return <SwipeRow key={t.id} task={t} rowNum={rowNum} isLast={i===regular.length-1} isDragging={dragId===t.id} isDragOver={dragOverId===t.id} {...swipeProps}/>; })}
+              </div>
+            </div>
+          )}
+          {completed.length > 0 && (
+            <div style={{ margin:"16px 12px 0" }}>
+              <button onClick={() => setShowDone(v => !v)}
+                style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:0.8, marginBottom:6, padding:"0 4px" }}>
+                <ChevronDown size={12} style={{ transform:showDone ? "none" : "rotate(-90deg)", transition:"transform .2s" }}/>
+                Completed ({completed.length})
+              </button>
+              {showDone && (
+                <div style={S.card()}>
+                  {completed.map((t, i) => { rowNum++; return <SwipeRow key={t.id} task={t} rowNum={rowNum} isLast={i===completed.length-1} isDragging={false} isDragOver={false} {...swipeProps}/>; })}
+                </div>
+              )}
+            </div>
+          )}
+          {filteredTasks.length === 0 && (
+            <div style={{ textAlign:"center", padding:"60px 20px" }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>📋</div>
+              <div style={{ fontSize:18, fontWeight:700, color:T.text }}>No tasks</div>
+              <div style={{ fontSize:14, color:T.muted, marginTop:6 }}>
+                {filterPill !== "all" ? "Try a different filter" : "Tap + to add your first task"}
+              </div>
+            </div>
+          )}
+          <div style={{ height:80 }}/>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Add / Edit sheet ───────────────────────────────────────────────────────
+  const renderSheet = () => {
+    return (
+      <div style={{ position:"absolute", inset:0, zIndex:80, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+        <div onClick={() => { setShowSheet(false); setSheetTask(null); }} style={{ position:"absolute", inset:0, backgroundColor:"rgba(0,0,0,0.45)" }}/>
+        <div style={{ position:"relative", backgroundColor:T.card, borderRadius:"24px 24px 0 0", zIndex:1, maxHeight:"90%", overflowY:"auto" }}>
+          <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 8px" }}>
+            <div style={{ width:40, height:4, borderRadius:2, backgroundColor:T.hint }}/>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"4px 20px", marginBottom:16 }}>
+            <button onClick={() => { setShowSheet(false); setSheetTask(null); }} style={S.ghost({ color:T.muted })}>Cancel</button>
+            <div style={{ fontSize:17, fontWeight:700, color:T.text }}>{sheetTask ? "Edit Task" : "New Task"}</div>
+            <button onClick={saveSheet} disabled={!eText.trim()} style={S.ghost({ fontWeight:700, opacity:eText.trim() ? 1 : 0.4 })}>
+              {sheetTask ? "Save" : "Add"}
+            </button>
+          </div>
+          <div style={{ padding:"0 20px", display:"flex", flexDirection:"column", gap:10 }}>
+            <input ref={sheetRef} value={eText} onChange={e => setEText(e.target.value)} placeholder="Task name"
+              style={S.inp({ fontSize:18, fontWeight:500, padding:"14px 16px" })}
+              onKeyDown={e => { if (e.key==="Enter" && eText.trim()) saveSheet(); }}/>
+            {!eShowDesc ? (
+              <button onClick={() => setEShowDesc(true)} style={S.ghost({ textAlign:"left", padding:"2px 4px", fontSize:14, color:T.muted })}>+ Add description</button>
+            ) : (
+              <textarea value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="Description (optional)" rows={2}
+                style={S.inp({ resize:"none", fontSize:14 })}/>
+            )}
+            {/* Date + Time */}
+            <div style={{ display:"flex", gap:8 }}>
+              <div style={{ flex:1, display:"flex", flexDirection:"column", gap:4 }}>
+                <span style={{ fontSize:11, fontWeight:600, color:T.muted, textTransform:"uppercase", letterSpacing:0.5, paddingLeft:4 }}>Due Date</span>
+                <input type="date" value={eDue} onChange={e => setEDue(e.target.value)} style={S.inp({ fontSize:14, padding:"10px 12px" })}/>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                <span style={{ fontSize:11, fontWeight:600, color:T.muted, textTransform:"uppercase", letterSpacing:0.5, paddingLeft:4 }}>Time</span>
+                <input type="time" value={eTime} onChange={e => setETime(e.target.value)} style={S.inp({ width:"auto", fontSize:14, padding:"10px 12px" })}/>
+              </div>
+            </div>
+            {/* Priority */}
+            <div>
+              <div style={{ fontSize:12, color:T.muted, marginBottom:6, fontWeight:500, textTransform:"uppercase", letterSpacing:0.5 }}>Priority</div>
+              <div style={{ display:"flex", gap:6 }}>
+                {[["urgent","🔴"],["high","🟠"],["normal","🟡"],["low","⚪"]].map(([p, ico]) => (
+                  <button key={p} onClick={() => setEPri(p)}
+                    style={{ flex:1, padding:"9px 0", borderRadius:10, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, fontSize:11, fontWeight:700, textTransform:"capitalize",
+                      border:`1.5px solid ${ePri===p ? T.primary : T.sep}`,
+                      backgroundColor:ePri===p ? T.primaryDim : T.cardAlt,
+                      color:ePri===p ? T.primary : T.muted }}>
+                    <span>{ico}</span><span>{p}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* v4: Time estimate */}
+            <div>
+              <div style={{ fontSize:12, color:T.muted, marginBottom:6, fontWeight:500, textTransform:"uppercase", letterSpacing:0.5 }}>Time Estimate</div>
+              <div style={{ display:"flex", gap:6 }}>
+                {[["","–"],["15","15m"],["30","30m"],["60","1h"],["120","2h"],["180","3h"]].map(([v, l]) => (
+                  <button key={v} onClick={() => setEEst(v)}
+                    style={{ flex:1, padding:"8px 0", borderRadius:10, cursor:"pointer", fontSize:12, fontWeight:600,
+                      border:`1.5px solid ${eEst===v ? T.primary : T.sep}`,
+                      backgroundColor:eEst===v ? T.primaryDim : T.cardAlt,
+                      color:eEst===v ? T.primary : T.muted }}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Repeat */}
+            <div>
+              <div style={{ fontSize:12, color:T.muted, marginBottom:6, fontWeight:500, textTransform:"uppercase", letterSpacing:0.5 }}>Repeat</div>
+              <select value={eRec} onChange={e => setERec(e.target.value)} style={S.inp({ fontSize:14, padding:"10px 12px" })}>
+                {Object.entries(recLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <button onClick={saveSheet} disabled={!eText.trim()} style={S.primBtn({ opacity:eText.trim() ? 1 : 0.5, marginTop:4 })}>
+              {sheetTask ? "Save Changes" : "Add Task"}
+            </button>
+          </div>
+          <div style={{ height:32 }}/>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Context menu ───────────────────────────────────────────────────────────
+  const renderCtxMenu = () => {
+    if (!ctxTask) return null;
+    const task = ctxTask;
+    const actions = [
+      { label:task.completed ? "Mark Incomplete" : "Mark Complete", icon:<CheckCircle2 size={18}/>, action:() => { toggleTask(task.id); setCtxTask(null); } },
+      { label:task.pinned ? "Unpin" : "Pin to Top", icon:<Star size={18} fill={task.pinned ? T.star : "none"} color={T.star}/>, action:() => { togglePin(task.id); setCtxTask(null); } },
+      { label:"Edit", icon:<Edit3 size={18}/>, action:() => openEdit(task) },
+      task.dueDate ? { label:"Add to Calendar", icon:<CalendarPlus size={18}/>, action:() => { doExport(); setCtxTask(null); } } : null,
+      { label:"Delete", icon:<Trash2 size={18}/>, action:() => { deleteTask(task.id); setCtxTask(null); }, danger:true },
+    ].filter(Boolean);
+    return (
+      <div style={{ position:"absolute", inset:0, zIndex:90, display:"flex", flexDirection:"column", justifyContent:"flex-end" }}>
+        <div onClick={() => setCtxTask(null)} style={{ position:"absolute", inset:0, backgroundColor:"rgba(0,0,0,0.4)" }}/>
+        <div style={{ position:"relative", zIndex:1, margin:"0 8px", marginBottom:8 }}>
+          <div style={{ backgroundColor:T.card, borderRadius:16, padding:"12px 16px", textAlign:"center", marginBottom:8 }}>
+            <div style={{ fontSize:13, color:T.muted, lineHeight:1.4 }}>{task.text}</div>
+          </div>
+          <div style={{ backgroundColor:T.card, borderRadius:16, overflow:"hidden", marginBottom:8 }}>
+            {actions.map(({ label, icon, action, danger }, i) => (
+              <button key={label} onClick={action}
+                style={{ display:"flex", alignItems:"center", gap:14, width:"100%", padding:"15px 20px", background:"none", border:"none", textAlign:"left", fontSize:16, cursor:"pointer",
+                  color:danger ? T.danger : T.text,
+                  borderBottom:i < actions.length-1 ? `0.5px solid ${T.sep}` : "none" }}>
+                <span style={{ color:danger ? T.danger : T.primary }}>{icon}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setCtxTask(null)}
+            style={{ width:"100%", padding:15, backgroundColor:T.card, border:"none", borderRadius:16, fontSize:17, fontWeight:700, color:T.primary, cursor:"pointer" }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ── v4: Global search overlay ──────────────────────────────────────────────
+  const renderGlobalSearch = () => {
+    const goToTask = (task) => {
+      setActiveTab("home");
+      setCurUser(task.userId);
+      setCurTopic(task.topicId);
+      setGlobalSearch(false);
+      setGlobalTerm("");
+      // Expand subtasks panel if task has subtasks, highlight via expandSubs
+      if ((task.subtasks || []).length > 0) {
+        setExpandSubs(p => ({ ...p, [task.id]:true }));
+      }
+    };
+
+    return (
+      <div style={{ position:"absolute", inset:0, zIndex:95, backgroundColor:T.systemBg, display:"flex", flexDirection:"column" }}>
+        {/* Search input */}
+        <div style={{ backgroundColor:T.card, padding:"12px 16px", borderBottom:`0.5px solid ${T.sep}`, display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ flex:1, position:"relative" }}>
+            <Search size={15} color={T.muted} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }}/>
+            <input ref={gSearchRef} placeholder="Search all tasks…" onChange={e => debGSearch(e.target.value)}
+              style={S.inp({ paddingLeft:34, fontSize:15, padding:"10px 12px 10px 34px" })}/>
+          </div>
+          <button onClick={() => { setGlobalSearch(false); setGlobalTerm(""); }} style={S.ghost({ color:T.muted, fontSize:15 })}>Cancel</button>
+        </div>
+
+        {/* Results */}
+        <div style={{ flex:1, overflowY:"auto" }}>
+          {globalTerm.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"60px 20px" }}>
+              <Search size={40} color={T.hint} style={{ marginBottom:12 }}/>
+              <div style={{ fontSize:16, color:T.muted }}>Search across all users and topics</div>
+            </div>
+          ) : globalResults.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"60px 20px" }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>🔍</div>
+              <div style={{ fontSize:16, color:T.muted }}>No results for "{globalTerm}"</div>
+            </div>
+          ) : (
+            <div style={{ padding:"12px 12px 32px" }}>
+              <div style={{ fontSize:12, color:T.muted, marginBottom:10, paddingLeft:4 }}>{globalResults.length} result{globalResults.length !== 1 ? "s" : ""}</div>
+              <div style={S.card()}>
+                {globalResults.map((task, i) => {
+                  const ul = task.completed ? "none" : urgLvUtil(task.dueDate);
+                  return (
+                    <div key={task.userId+"-"+task.id}
+                      style={{ padding:"13px 16px", display:"flex", gap:10, alignItems:"flex-start", borderBottom:i < globalResults.length-1 ? `0.5px solid ${T.sep}` : "none",
+                        backgroundColor:task.completed ? T.cardAlt : T.card }}>
+                      {/* Complete checkbox */}
+                      <button onClick={() => toggleTask(task.id, task.userId, task.topicId)}
+                        style={{ flexShrink:0, width:22, height:22, borderRadius:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0, marginTop:2,
+                          border:`2px solid ${task.completed ? T.success : T.sepHard}`,
+                          backgroundColor:task.completed ? T.success : "transparent" }}>
+                        {task.completed && <Check size={12} color="#fff"/>}
+                      </button>
+                      {/* Task info */}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:11, color:T.muted, marginBottom:2 }}>
+                          {task.userName}
+                          <span style={{ margin:"0 4px", color:T.hint }}>›</span>
+                          {task.topicName}
+                        </div>
+                        <div style={{ fontSize:15, fontWeight:500, color:task.completed ? T.muted : T.text, textDecoration:task.completed ? "line-through" : "none", wordBreak:"break-word" }}>
+                          {task.text}
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3, flexWrap:"wrap" }}>
+                          {task.dueDate && <span style={{ fontSize:12, color:dueTxColor(task.dueDate), fontWeight:500 }}>{fmtDate(task.dueDate)}</span>}
+                          {task.dueTime && task.dueDate && <span style={{ display:"flex", alignItems:"center", gap:2, fontSize:12, color:T.primary }}><Clock size={9}/>{fmtTime(task.dueTime)}</span>}
+                          {task.estimate && <span style={{ fontSize:11, color:T.muted }}>{EST_LABELS[task.estimate]}</span>}
+                          {task.pinned && <Star size={10} color={T.star} fill={T.star}/>}
+                        </div>
+                      </div>
+                      {/* Right side: urgency dot + Go To */}
+                      <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
+                        {ul !== "none" && <span style={{ width:8, height:8, borderRadius:"50%", backgroundColor:ul==="red" ? T.rRedDt : T.rOrgDt }}/>}
+                        {/* Go To button */}
+                        <button onClick={() => goToTask(task)}
+                          style={{ display:"flex", alignItems:"center", gap:3,
+                            backgroundColor:T.primaryDim, border:"none", borderRadius:10,
+                            padding:"4px 9px", cursor:"pointer",
+                            fontSize:11, fontWeight:700, color:T.primary }}>
+                          Go <ChevronRight size={11}/>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize:11, color:T.hint, textAlign:"center", marginTop:12 }}>
+                Tap Go to jump to a task's location · Tap the circle to complete
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Sub-nav ────────────────────────────────────────────────────────────────
+  const renderSubNav = () => {
+    const title = curTopic ? curTopicData.name : curUserData.name;
+    const subtitle = curTopic
+      ? curTopicData.tasks.filter(t => t.completed).length + "/" + curTopicData.tasks.length + " done"
+      : "Select a topic";
+    return (
+      <div style={{ backgroundColor:T.card, borderBottom:`0.5px solid ${T.sep}`, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", padding:"12px 16px", gap:8 }}>
+          <button onClick={() => { if (curTopic) setCurTopic(null); else setCurUser(null); }}
+            style={S.ghost({ display:"flex", alignItems:"center", gap:4, padding:"4px 0", marginRight:4 })}>
+            <ArrowLeft size={18}/><span style={{ fontSize:16 }}>Back</span>
+          </button>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:17, fontWeight:700, color:T.text }}>{title}</div>
+            <div style={{ fontSize:12, color:T.muted, marginTop:1 }}>{subtitle}</div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+            {urBtns()}
+            {curTopic && (
+              <button onClick={() => setShowSearch(v => !v)} style={S.ghost({ padding:6, color:showSearch ? T.primary : T.muted })}>
+                <Search size={18}/>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── SINGLE RETURN ──────────────────────────────────────────────────────────
+  const homeContent = () => {
+    if (!curUser)  return renderUsers();
+    if (!curTopic) return renderTopics();
+    return renderTasks();
+  };
+
+  return (
+    <div style={{ backgroundColor:T.systemBg, width:"100%", height:"100vh", overflow:"hidden", display:"flex", flexDirection:"column", position:"relative",
+      fontFamily:"-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" }}>
+
+      {showBoarding ? (
+        <div style={{ flex:1, overflowY:"auto", backgroundColor:T.card, display:"flex", flexDirection:"column" }}>
+          {renderOnboarding()}
+        </div>
+      ) : (
+        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0 }}>
+          {activeTab === "home" && curUser && renderSubNav()}
+          <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, position:"relative" }}>
+            {activeTab === "today"    ? renderBriefing()  :
+             activeTab === "calendar" ? renderCalendar()  :
+             activeTab === "settings" ? renderSettings()  :
+             homeContent()}
+          </div>
+          <TabBar/>
+        </div>
+      )}
+
+      {showSheet        && renderSheet()}
+      {ctxTask          && renderCtxMenu()}
+      {globalSearch     && renderGlobalSearch()}
     </div>
   );
 }
