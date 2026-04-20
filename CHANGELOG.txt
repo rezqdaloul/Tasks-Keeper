@@ -1,363 +1,127 @@
 ================================================================================
-  DAILY TASKS PWA — CHANGELOG & DOCUMENTATION
-================================================================================
-  Format:    Plain text
-  Maintained by: Development team
-  Purpose:   Version tracking, feature documentation, rollback reference
+DAILY TASKS PWA — CHANGELOG
 ================================================================================
 
-
-────────────────────────────────────────────────────────────────────────────────
-  VERSION 1.0 — INITIAL RELEASE
-  Status: STABLE
-  File:   src/App.jsx (1,423 lines)
-────────────────────────────────────────────────────────────────────────────────
-
-OVERVIEW
-  Multi-user, multi-topic task manager delivered as a Progressive Web App (PWA).
-  Installable on iPhone via Safari → Add to Home Screen. Fully offline-capable.
-  All data stored in localStorage (key: "dtwv4"). No backend required.
-
-────────────────────────────────────────────────────────────────────────────────
-ARCHITECTURE
-────────────────────────────────────────────────────────────────────────────────
-
-  Data model (localStorage, JSON):
-  ┌─ users {}
-  │   └─ [userId] {}
-  │       ├─ id, name
-  │       └─ topics {}
-  │           └─ [topicId] {}
-  │               ├─ id, name
-  │               └─ tasks []
-  │                   ├─ id, text, description
-  │                   ├─ completed (bool), completedAt (ISO string | null)
-  │                   ├─ dueDate (YYYY-MM-DD | null)
-  │                   ├─ priority (urgent | high | normal | low)
-  │                   ├─ recurrence (daily | weekly | monthly | yearly | null)
-  │                   └─ createdAt (ISO string)
-  ├─ currentUser (userId | null)
-  ├─ currentTopic (topicId | null)
-  ├─ themeName (light | dark)
-  └─ showUrgency (bool)
-
-  Build tool:   Vite 5 + vite-plugin-pwa
-  Framework:    React 18 (hooks only)
-  Icons:        lucide-react 0.383.0
-  Deployment:   GitHub Actions → gh-pages branch → GitHub Pages
-
-────────────────────────────────────────────────────────────────────────────────
-V1.0 FEATURES
-────────────────────────────────────────────────────────────────────────────────
-
-  NAVIGATION
-  • User selection screen (supports multiple users)
-  • Topic selection screen per user
-  • Task list screen per topic
-  • Settings screen
-  • Calendar screen (accessible from user selection header)
-
-  TASK MANAGEMENT
-  • Add tasks with text, description, due date, priority, recurrence
-  • Inline edit — tap any task to expand editor
-  • Delete individual tasks
-  • Clear all tasks (red trash button)
-  • Toggle completion — checkbox with strikethrough on completion
-  • Recurring tasks — auto-creates next occurrence on completion
-    (daily / weekly / monthly / yearly)
-
-  PRIORITY SYSTEM
-  • Four levels: Urgent, High, Normal, Low
-  • Displayed as badge in task details popup
-
-  URGENCY / DUE DATE COLORS
-  • Red border + red dot: overdue, due today, or due tomorrow (≤ 1 day)
-  • Orange border + orange dot: exactly 2 days remaining
-  • No color: more than 2 days remaining
-  • Toggle on/off in Settings
-  • Applied to: task rows, topic rows, user rows (bubbles up)
-
-  SEARCH & FILTER
-  • Debounced text search (250ms) across task name and description
-  • Filter by urgency: All / Urgent / Normal
-  • Filter by priority: All / Urgent / High / Normal / Low
-
-  STATS BAR
-  • Toggle via bar chart icon in task view header
-  • Shows: Total, Done, Today (completed today), Urgent counts
-
-  PROGRESS BAR
-  • Thin bar below task header showing % of filtered tasks completed
-
-  CALENDAR VIEW
-  • Two modes: Agenda (Teams-style) | Month (grid)
-  • Agenda: horizontal scrollable date strip + grouped task list
-  • Month: color-coded date cells by highest priority task on that date
-  • Both views show: task breadcrumb path (User → Topic), task name,
-    priority badge, description, recurrence indicator
-  • Color legend: Red = Urgent/High, Blue = Normal, Orange = Low
-  • Accessible via CalendarDays icon on user selection screen
-
-  THEMES
-  • Light and Dark themes
-  • Quick toggle via Palette icon in header
-  • Full theme switcher in Settings
-
-  IMPORT / EXPORT
-  • Full backup: exports all users to JSON (version 4.0 format)
-  • Per-user export: exports single user to JSON
-  • Import: merges backup into current state
-    - Users in backup → override existing
-    - Users not in backup → kept untouched
-  • Validation: rejects files that are not version 4.0 format
-
-  ICS CALENDAR EXPORT
-  • Green CalendarPlus icon on tasks with a due date
-  • Also available in Task Details popup
-  • Exports standard .ics file (iCalendar format)
-  • Event set at 09:00 AM on due date with 15-min alarm (08:45 AM)
-  • Opens in Apple Calendar on iPhone → native notification
-
-  USER MANAGEMENT
-  • Add, rename, delete users
-  • Cannot delete last remaining user
-  • Per-user urgency dot in user list
-
-  TOPIC MANAGEMENT
-  • Add, rename, delete topics per user
-  • Topic urgency dots bubble up from tasks
-
-  UNDO / REDO
-  • Full history stack per session
-  • Keyboard: Ctrl/Cmd+Z (undo), Ctrl/Cmd+Shift+Z (redo)
-  • Undo/Redo buttons appear in header when available
-
-  KEYBOARD SHORTCUTS
-  • Ctrl/Cmd+Z       — Undo
-  • Ctrl/Cmd+Shift+Z — Redo
-  • Escape           — Close edit / popup / settings
-  • Enter            — Submit input (add task, add user, add topic, save edit)
-
-  PWA / iOS
-  • Installable via Safari → Share → Add to Home Screen
-  • Runs in standalone mode (no browser chrome)
-  • Service worker caches all assets for offline use
-  • X button: closes browser tab normally; in PWA shows "Ready to leave?"
-    screen with swipe-up instructions (iOS blocks window.close() in PWAs)
-  • Status-bar meta: black-translucent (extends behind iPhone notch)
-  • Safe area insets respected
-
-  SAVE INDICATOR
-  • Small colored dot in header: yellow = saving, green = saved, red = error
-  • Auto-save triggers 300ms after any state change
-
-────────────────────────────────────────────────────────────────────────────────
-V1.0 KNOWN LIMITATIONS
-────────────────────────────────────────────────────────────────────────────────
-
-  • No subtasks — tasks are single-level only
-  • No push notifications — .ics export is only reminder mechanism
-  • No onboarding — new users land on blank "Select User" screen
-  • No collaboration — users are isolated, no shared topics
-  • No task ordering — tasks appear in creation order, no drag-to-reorder
-  • No tags/labels — cross-topic filtering not possible
-  • Data is device-local — no sync across devices
-
-────────────────────────────────────────────────────────────────────────────────
-V1.0 FILES
-────────────────────────────────────────────────────────────────────────────────
-
-  src/App.jsx                      Main application (all views and logic)
-  src/main.jsx                     React entry point + SW registration
-  index.html                       HTML shell with PWA meta tags
-  vite.config.js                   Vite + PWA plugin config
-  package.json                     Dependencies
-  public/icons/icon.svg            SVG app icon
-  public/icons/icon-192.png        PWA manifest icon (generated)
-  public/icons/icon-512.png        PWA manifest icon (generated)
-  public/icons/apple-touch-icon.png  iOS home screen icon (generated)
-  generate-icons.html              Open in browser to generate PNG icons
-  .github/workflows/deploy.yml     CI/CD: build + deploy to GitHub Pages
-  README.md                        Setup and deployment instructions
-
+VERSION 4.0.0 — MAJOR RELEASE
+Status: STABLE — CURRENT
 ================================================================================
 
-
-────────────────────────────────────────────────────────────────────────────────
-  VERSION 2.0 — SUBTASKS, ONBOARDING & SMART NOTIFICATIONS
-  Status: STABLE
-  File:   src/App.jsx (updated)
-  Built on top of: v1.0
+NEW FEATURES
 ────────────────────────────────────────────────────────────────────────────────
 
-OVERVIEW
-  Three major features added: a first-time onboarding flow, subtask support
-  on every task, and smart push notifications that fire when tasks are due.
-  Data model updated to include subtasks. localStorage key unchanged (dtwv4)
-  but task objects now carry a subtasks array. Backwards-compatible with v1
-  data — existing tasks load correctly with subtasks defaulting to empty.
+1. SWIPE GESTURES
+   - Swipe right on any task row → Mark Complete (green reveal)
+   - Swipe left on any task row → Delete (red reveal)
+   - Threshold-based: short swipes snap back, full swipes trigger action
+   - Touch-cancel safe: interrupted gestures reset cleanly
 
-────────────────────────────────────────────────────────────────────────────────
-V2.0 NEW FEATURES
-────────────────────────────────────────────────────────────────────────────────
+2. DRAG TO REORDER
+   - Long-press the grip handle (⋮⋮) on any incomplete task row
+   - Drag up or down to reposition within the list
+   - Blue line indicates drop target
+   - Reorder saved to undo/redo history
 
-  1. ONBOARDING FLOW
-  ─────────────────
-  Shown once on first launch. Stored via localStorage key "onboardingComplete".
-  Once dismissed, never shown again unless localStorage is cleared.
+3. GLOBAL SEARCH
+   - Search icon on Home screen opens full-screen overlay
+   - Searches every user, every topic, every task simultaneously
+   - Results show username + topic breadcrumb, due date, time, estimate
+   - Tap circle to complete a task directly from results
+   - "Go →" button navigates to the task's exact location
 
-  Screen 1 — Welcome
-    • App name, tagline, and brief value proposition
-    • "Get Started" button
+4. STREAK + WEEKLY CHART
+   - Today screen shows current consecutive-day streak (🔥)
+   - 7-day completion bar chart below the streak counter
+   - Today's bar highlighted in blue; completed days in green
 
-  Screen 2 — How It Works
-    • Visual explanation of the three-level structure:
-      Users → Topics → Tasks
-    • Example shown for each level
-    • "Next" button
+5. TIME ESTIMATES
+   - Optional estimate field per task: 15m / 30m / 1h / 2h / 3h
+   - Estimate badge shown on each task row
+   - Today screen: total committed time for tasks due today
+   - Topic screen: total remaining time across all incomplete tasks
 
-  Screen 3 — Notifications
-    • Explains what notifications are used for (due date reminders)
-    • "Enable Notifications" button → triggers browser permission prompt
-    • "Skip for now" option — continues without notifications
-    • Completing this screen enters the main app
+6. DATE/TIME DEFAULTS
+   - Add Task sheet pre-fills with today's date
+   - Time defaults to next full hour (e.g. 2:58 PM → 4:00 PM)
+   - Date and Time fields have clear labels above each input
 
-  Implementation notes:
-    • State: showOnboarding (bool), initialized from localStorage
-    • Permission stored in browser (Notification.permission)
-    • Onboarding screens are full-page cards matching the app theme
-    • Shown before any other view, including user selection
+7. SMART HOME BUTTON
+   - Pressing Home from Today/Calendar/Settings restores last topic/user
+   - Pressing Home again resets to the main Users page
+   - Works correctly when navigating deep into the app before switching tabs
 
-  ─────────────────────────────────────────────────────────────────────────────
-
-  2. SUBTASKS
-  ──────────
-  Every task can now have an unlimited list of subtasks. Subtasks have their
-  own independent completion state.
-
-  Data model addition:
-    task.subtasks = [
-      { id (number), text (string), completed (bool) }
-    ]
-  Backwards compatible — existing tasks load with subtasks defaulting to [].
-
-  UI behavior:
-    • Subtask toggle button appears on each task row (right side, checklist icon)
-    • Tapping it expands an inline subtask panel below the task
-    • Subtask panel shows: list of subtasks with checkboxes + "Add subtask" input
-    • Each subtask: checkbox, text, delete button
-    • Completing all subtasks does NOT auto-complete the parent task
-      (intentional — parent task completion remains manual)
-    • Progress shown on task row: "(2/4)" fraction when subtasks exist
-    • Subtasks are included in task details popup
-
-  CRUD:
-    • addSubtask(taskId, text)
-    • toggleSubtask(taskId, subtaskId)
-    • deleteSubtask(taskId, subtaskId)
-
-  ─────────────────────────────────────────────────────────────────────────────
-
-  3. SMART PUSH NOTIFICATIONS
-  ───────────────────────────
-  Uses the Web Notifications API (no backend required). Works within the
-  constraints of PWA on iOS 16.4+ and all modern Android/desktop browsers.
-
-  Permission flow:
-    • Requested during onboarding (Screen 3)
-    • Can be skipped — app works fully without notifications
-    • Permission status shown in Settings (granted / denied / not asked)
-    • Re-request button in Settings if previously skipped
-
-  When notifications fire:
-    • On app open: checks all tasks across all users/topics
-    • Fires a notification for every incomplete task that is:
-        - Overdue (past due date)
-        - Due today
-        - Due tomorrow
-    • Notification includes: task name, topic path (User → Topic), due status
-    • Deduplication: each notification ID is based on task ID + date,
-      so the same task won't notify twice on the same day
-
-  Notification format:
-    Title:  "📋 Task Due: [task name]"
-    Body:   "[User] → [Topic] · [Today / Tomorrow / X days overdue]"
-    Icon:   App icon
-
-  iOS note:
-    • Requires iOS 16.4+ AND app added to home screen as PWA
-    • Notifications do NOT fire in background on iOS (Apple limitation)
-    • They fire the moment the user opens the app — still useful as
-      an immediate reminder on app launch
-
-  Settings integration:
-    • New "Notifications" section in Settings screen
-    • Shows current permission status
-    • Button to enable if not yet granted
-
-────────────────────────────────────────────────────────────────────────────────
-V2.0 DATA MODEL CHANGES
+UI IMPROVEMENTS
 ────────────────────────────────────────────────────────────────────────────────
 
-  Changed:
-    task.subtasks (array, new)     — list of subtask objects
-      subtask.id        number     — timestamp-based unique ID
-      subtask.text      string     — subtask description
-      subtask.completed boolean    — completion state
+1. FLOATING PILL TAB BAR (iOS glass style)
+   - Pill-shaped capsule with backdrop-filter blur + shadow
+   - FAB (+) button sits to the right of the pill, only on task list screen
+   - Matches modern iOS app design language
 
-  Unchanged:
-    All v1 fields remain identical.
-    localStorage key "dtwv4" unchanged.
-    v1 data loads cleanly (subtasks defaults to [] on load).
+2. iOS-NATIVE DESIGN SYSTEM
+   - F2F2F7 system gray background / white card surfaces
+   - Separator lines use rgba opacity (not solid colors)
+   - All render functions use block-body form (no Babel parse issues)
+   - SF Pro font stack
 
-────────────────────────────────────────────────────────────────────────────────
-V2.0 FILES CHANGED
-────────────────────────────────────────────────────────────────────────────────
-
-  src/App.jsx    — All three features added
-  CHANGELOG.txt  — This file (new)
-
-  All other files unchanged from v1.
-
-────────────────────────────────────────────────────────────────────────────────
-V2.0 ROLLBACK INSTRUCTIONS
+BUG FIXES
 ────────────────────────────────────────────────────────────────────────────────
 
-  To revert to v1.0:
-  1. In your GitHub repo, open src/App.jsx
-  2. Click History (clock icon) on the file
-  3. Find the last commit before the v2 update
-  4. Click "..." → "View file" → copy all content
-  5. Paste into the current App.jsx and commit
-  6. GitHub Actions will rebuild and redeploy automatically (~2 min)
-
-  Data compatibility:
-  • v1 data is fully readable by v1 code
-  • v2 data (with subtasks) will load in v1 — subtasks field is ignored
+- FIXED: Swipe-left delete was silently failing (empty stub instead of prop call)
+- FIXED: Subtask input lost focus after every keystroke (SwipeRow was defined
+  inside App causing remount on every render — moved to module level)
+- FIXED: Drag opacity stuck at 0.4 permanently on mobile Safari (document-level
+  dragend + pointerup listeners always clear drag state)
+- FIXED: Subtask panel required subtasks to exist before showing add input
+  (now always shows the input when panel is expanded)
 
 ================================================================================
-END OF CHANGELOG
+VERSION 2.0.1 — NOTIFICATION IMPROVEMENTS
+Status: SUPERSEDED by v4.0.0
 ================================================================================
 
+- FIX: Notification dedup switched from sessionStorage to localStorage with
+  date-scoped key (notif-{id}-{date}-{YYYY-MM-DD}). Fires once per day max.
+- IMPROVEMENT: Notification body now shows subtasks (✓/○) + due status
+  instead of topic path.
+- NOTE: "from Tasks-Keeper" label is iOS-enforced and cannot be removed.
+
 ================================================================================
-V2.0 RELEASE NOTES — PATCH FIXES
+VERSION 2.0.0 — ONBOARDING, SUBTASKS, NOTIFICATIONS
+Status: SUPERSEDED by v4.0.0
 ================================================================================
 
-POST-RELEASE FIXES APPLIED BEFORE ZIP:
-  • Fixed: unquoted object key `demo-user:` (JS hyphen = subtraction operator)
-    Root cause: sed name-replacement stripped surrounding quotes
-    Fix: `'demo-user':` properly quoted as a string key
+- Onboarding flow (3 screens, shown once, localStorage flag)
+- Subtasks with progress badge and expandable panel
+- Smart push notifications on app open for due/overdue tasks
+- Generic "Demo User" default (safe for stakeholder sharing)
+- Urgency colors: red (overdue/today/tomorrow), orange (2 days)
 
-  • Fixed: Onboarding notification screen showed 3 colors (red/yellow/orange)
-    Root cause: incorrect UI copy that didn't match actual urgency logic
-    Fix: Now shows exactly 2 items matching real behavior:
-         🔴 Overdue, today & tomorrow | 🟠 2 days remaining
+================================================================================
+VERSION 1.0.0 — INITIAL RELEASE
+Status: SUPERSEDED by v4.0.0
+================================================================================
 
-  • Fixed: Default user name was personal name "Rezq"
-    Fix: Changed to generic "Demo User" — safe to share with stakeholders
+- Multi-user / multi-topic / task hierarchy
+- Priorities, due dates, recurrence
+- Urgency border colors
+- Search + filter (within topic)
+- Stats bar, progress bar
+- Undo/Redo (keyboard + buttons)
+- Light/dark theme
+- Import/export JSON v4.0
+- .ics calendar export
+- Calendar view (Agenda + Month)
+- PWA installable on iPhone via Safari
 
-  • Fixed: Artifact used localStorage stubs (alerts for file ops)
-    Fix: PWA uses real writeJsonFile, real doImport, real exportTaskToCalendar,
-         real Notification.requestPermission, real localStorage auto-save
+================================================================================
+ROLLBACK INSTRUCTIONS
+================================================================================
 
+To roll back to any version, check out the corresponding Git tag:
+
+  git checkout v1.0.0   # v1 release
+  git checkout v2.0.1   # v2 with notification fixes
+  git checkout v4.0.0   # current
+
+Only src/App.jsx changes between versions. All other files are shared.
 ================================================================================
