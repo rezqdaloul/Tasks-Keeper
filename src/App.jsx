@@ -842,34 +842,60 @@ export default function App() {
     if (!notifOn) return;
     if (typeof Notification === "undefined") return;
     if (Notification.permission !== "granted") return;
-    const now  = new Date();
-    const todayStr = now.toISOString().split("T")[0];
+    const now   = new Date();
     const fired = notifFiredRef.current;
     Object.values(users).forEach(u =>
       Object.values(u.topics).forEach(tp =>
         tp.tasks.forEach(t => {
           if (t.completed || !t.dueDate || !t.dueTime) return;
-          if (fired.has(t.id)) return;
-          // Parse due datetime
-          const due = new Date(t.dueDate + "T" + t.dueTime + ":00");
-          const diffMs = due - now; // positive = future, negative = past
-          const diffMin = diffMs / 60000;
-          // Fire if: due within next 60 minutes, OR overdue by less than 5 minutes
-          if (diffMin <= 60 && diffMin >= -5) {
-            fired.add(t.id);
-            let body = "";
-            if (diffMin < 0) body = `Overdue ${Math.abs(Math.round(diffMin))}m — ${u.name} › ${tp.name}`;
-            else if (diffMin < 1) body = `Due now — ${u.name} › ${tp.name}`;
-            else body = `Due in ${Math.round(diffMin)}m — ${u.name} › ${tp.name}`;
-            try {
-              new Notification(t.text, {
-                body,
-                icon: "/Tasks-Keeper/icons/icon-192.png",
-                badge:"/Tasks-Keeper/icons/icon-192.png",
-                tag: "dt-" + t.id,
-              });
-            } catch(_) {}
+
+          // Dedup key includes dueTime — so editing the due time creates a NEW
+          // notification event even if task.id was already fired at the old time.
+          const dedupKey = t.id + "|" + t.dueTime;
+          if (fired.has(dedupKey)) return;
+
+          const due    = new Date(t.dueDate + "T" + t.dueTime + ":00");
+          const diffMs = due - now;   // positive = future, negative = past
+          const diffMin= diffMs / 60000;
+
+          // Only fire when actually in the window — prevents firing the moment
+          // a task is saved with a future time > 60 min away.
+          if (diffMin > 60 || diffMin < -5) return;
+
+          fired.add(dedupKey);
+
+          // ── Notification title: task name + timing context ──────────────
+          let timing = "";
+          if (diffMin < 0)      timing = ` (overdue ${Math.abs(Math.round(diffMin))}m)`;
+          else if (diffMin < 1) timing = " (due now)";
+          else                  timing = ` (due in ${Math.round(diffMin)}m)`;
+          const title = t.text + timing;
+
+          // ── Notification body: description > subtasks > topic path ───────
+          let body = "";
+          const desc = (t.description || "").trim();
+          if (desc) {
+            body = desc.length > 80 ? desc.slice(0, 77) + "…" : desc;
+          } else if (t.subtasks && t.subtasks.length > 0) {
+            const pending = t.subtasks.filter(s => !s.completed);
+            const list    = pending.length > 0 ? pending : t.subtasks;
+            const names   = list.slice(0, 3).map(s => s.text);
+            const joined  = names.join(", ");
+            body = (pending.length > 0 ? "Pending: " : "Subtasks: ") +
+                   (joined.length > 60 ? joined.slice(0, 57) + "…" : joined);
+          } else {
+            body = u.name + " › " + tp.name;
           }
+
+          try {
+            new Notification(title, {
+              body,
+              icon : "/Tasks-Keeper/icons/icon-192.png",
+              badge: "/Tasks-Keeper/icons/icon-192.png",
+              // Tag uses dedupKey so OS-level dedup also respects dueTime changes
+              tag  : "dt-" + t.id + "-" + (t.dueTime || "").replace(":",""),
+            });
+          } catch(_) {}
         })
       )
     );
