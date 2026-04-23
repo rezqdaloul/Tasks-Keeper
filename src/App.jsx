@@ -497,6 +497,7 @@ export default function App() {
   const newURef   = useRef(null);
   const newTRef   = useRef(null);
   const gSearchRef= useRef(null);
+  const notifFiredRef = useRef(new Set()); // tracks task IDs already notified this session
 
   const T = THEMES[themeName] || THEMES.light;
   const isDark = themeName !== "light" && themeName !== "sand";
@@ -623,6 +624,23 @@ export default function App() {
   useEffect(()=>{
     savePrefs({ themeName, showUrgency, showBoarding, notifOn });
   },[themeName, showUrgency, showBoarding, notifOn]);
+
+  // Fire notifications on mount (after 2s) and whenever the page becomes visible
+  useEffect(()=>{
+    const check = () => fireNotifications.current && fireNotifications.current();
+    const t = setTimeout(check, 2000); // initial check after app loads
+    const onVisible = () => { if(document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearTimeout(t); document.removeEventListener("visibilitychange", onVisible); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-check notifications whenever notifOn or users data changes
+  useEffect(()=>{
+    if (notifOn) {
+      const t = setTimeout(() => fireNotifications.current && fireNotifications.current(), 500);
+      return () => clearTimeout(t);
+    }
+  },[notifOn, users]);
   useEffect(()=>{
     if(activeTab==="calendar"&&stripRef.current){
       setTimeout(()=>{ const el=stripRef.current?.querySelector('[data-today="true"]'); if(el)el.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"}); },150);
@@ -720,30 +738,144 @@ export default function App() {
   const saveTopicName=(id,name)=>{ if(name.trim()){const n=JSON.parse(JSON.stringify(users));n[curUser].topics[id].name=name.trim();push(n);} setEditTopicId(null); };
 
   const reqNotif = async () => {
-    if (!("Notification" in window)) {
-      // Browser doesn't support notifications — disable silently
-      setNotifOn(false);
-      return;
-    }
-    if (Notification.permission === "granted") {
-      setNotifOn(true);
-      return;
-    }
+    // Always allow the UI toggle to turn on — save state synchronously first
+    // so it persists even if the permission prompt is dismissed or unavailable.
+    setNotifOn(true);
+    savePrefs({ themeName, showUrgency, showBoarding, notifOn: true });
+
+    // If the Notification API isn't available (Safari browser / older iOS),
+    // the toggle still works — notifications will activate once installed as a PWA.
+    if (!("Notification" in window)) return;
+
+    if (Notification.permission === "granted") return; // already allowed, done
+
     if (Notification.permission === "denied") {
-      // User previously blocked — can't re-prompt, just stay off
-      setNotifOn(false);
-      alert("Notifications are blocked. Please enable them in your browser/device settings, then try again.");
+      // Can't re-prompt. Toggle stays on so user sees their intent,
+      // but show instructions for how to fix it in device settings.
+      alert("Notifications are blocked for this site.\n\nTo fix: Settings → Safari → tap the site → Notifications → Allow.");
       return;
     }
-    // permission === "default" — ask the user
+
+    // permission === "default" — request from browser
     try {
       const result = await Notification.requestPermission();
-      setNotifOn(result === "granted");
+      if (result !== "granted") {
+        // User denied the prompt — turn toggle back off
+        setNotifOn(false);
+        savePrefs({ themeName, showUrgency, showBoarding, notifOn: false });
+      }
     } catch(e) {
-      setNotifOn(false);
+      // requestPermission threw (some browsers require a user gesture context).
+      // Keep toggle on — best-effort behaviour.
     }
   };
-  const doExport=()=>alert("Export works in the real PWA.");
+  // ── Add to Calendar — generates a real .ics file and triggers download ──────
+  const addToCalendar = (task) => {
+    const pad  = (n) => String(n).padStart(2,"0");
+    const fmtDT= (ds, ts) => {
+      const d = new Date(ds + "T" + (ts || "00:00") + ":00");
+      return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) +
+             "T" + pad(d.getHours()) + pad(d.getMinutes()) + "00";
+    };
+    const uid = "dt-" + task.id + "-" + Date.now() + "@dailytasks";
+    const now  = fmtDT(new Date().toISOString().split("T")[0],
+                        new Date().toTimeString().slice(0,5));
+    const rruleMap = { daily:"FREQ=DAILY", weekly:"FREQ=WEEKLY",
+                       monthly:"FREQ=MONTHLY", yearly:"FREQ=YEARLY" };
+
+    let lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Daily Tasks PWA//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      "UID:" + uid,
+      "DTSTAMP:" + now + "Z",
+      "SUMMARY:" + (task.text || "Task"),
+    ];
+
+    if (task.description) {
+      lines.push("DESCRIPTION:" + task.description.replace(/\n/g,"\\n"));
+    }
+
+    if (task.dueDate && task.dueTime) {
+      // Timed event — 1 hour duration
+      const start = fmtDT(task.dueDate, task.dueTime);
+      const endD  = new Date(task.dueDate + "T" + task.dueTime + ":00");
+      endD.setHours(endD.getHours() + 1);
+      const end = fmtDT(
+        endD.toISOString().split("T")[0],
+        endD.toTimeString().slice(0,5)
+      );
+      lines.push("DTSTART:" + start);
+      lines.push("DTEND:" + end);
+      // 30-minute reminder
+      lines.push("BEGIN:VALARM","TRIGGER:-PT30M","ACTION:DISPLAY",
+                 "DESCRIPTION:Task due soon: " + task.text,"END:VALARM");
+    } else if (task.dueDate) {
+      // All-day event
+      lines.push("DTSTART;VALUE=DATE:" + task.dueDate.replace(/-/g,""));
+      lines.push("DTEND;VALUE=DATE:"   + task.dueDate.replace(/-/g,""));
+      lines.push("BEGIN:VALARM","TRIGGER:-PT30M","ACTION:DISPLAY",
+                 "DESCRIPTION:Task due: " + task.text,"END:VALARM");
+    }
+
+    if (task.recurrence && rruleMap[task.recurrence]) {
+      lines.push("RRULE:" + rruleMap[task.recurrence]);
+    }
+
+    lines.push("END:VEVENT","END:VCALENDAR");
+
+    const blob = new Blob([lines.join("\r\n")], { type:"text/calendar;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = (task.text || "task").replace(/[^a-z0-9]/gi,"_").slice(0,40) + ".ics";
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  };
+
+  // ── Push notifications — fires for tasks due within 60 min or just overdue ──
+  const fireNotifications = useRef(null);
+  fireNotifications.current = () => {
+    if (!notifOn) return;
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission !== "granted") return;
+    const now  = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const fired = notifFiredRef.current;
+    Object.values(users).forEach(u =>
+      Object.values(u.topics).forEach(tp =>
+        tp.tasks.forEach(t => {
+          if (t.completed || !t.dueDate || !t.dueTime) return;
+          if (fired.has(t.id)) return;
+          // Parse due datetime
+          const due = new Date(t.dueDate + "T" + t.dueTime + ":00");
+          const diffMs = due - now; // positive = future, negative = past
+          const diffMin = diffMs / 60000;
+          // Fire if: due within next 60 minutes, OR overdue by less than 5 minutes
+          if (diffMin <= 60 && diffMin >= -5) {
+            fired.add(t.id);
+            let body = "";
+            if (diffMin < 0) body = `Overdue ${Math.abs(Math.round(diffMin))}m — ${u.name} › ${tp.name}`;
+            else if (diffMin < 1) body = `Due now — ${u.name} › ${tp.name}`;
+            else body = `Due in ${Math.round(diffMin)}m — ${u.name} › ${tp.name}`;
+            try {
+              new Notification(t.text, {
+                body,
+                icon: "/Tasks-Keeper/icons/icon-192.png",
+                badge:"/Tasks-Keeper/icons/icon-192.png",
+                tag: "dt-" + t.id,
+              });
+            } catch(_) {}
+          }
+        })
+      )
+    );
+  };
+
+  const doExport = () => alert("Export / Import coming soon.");
 
   // ── Styles ─────────────────────────────────────────────────────────────────
   const S={
@@ -1350,7 +1482,7 @@ export default function App() {
       {label:task.pinned?"Unpin":"Pin to Top",icon:<Star size={18} fill={task.pinned?T.star:"none"} color={T.star}/>,action:()=>{togglePin(task.id);setCtxTask(null);}},
       {label:"Edit",icon:<Edit3 size={18}/>,action:()=>openEdit(task)},
       {label:"Focus Mode",icon:<Zap size={18}/>,action:()=>{ setFocusTask(task); setFocusSecs(25*60); setFocusRunning(false); setFocusFinished(false); setCtxTask(null); }},
-      task.dueDate?{label:"Add to Calendar",icon:<CalendarPlus size={18}/>,action:()=>{doExport();setCtxTask(null);}}:null,
+      task.dueDate?{label:"Add to Calendar",icon:<CalendarPlus size={18}/>,action:()=>{addToCalendar(task);setCtxTask(null);}}:null,
       {label:"Delete",icon:<Trash2 size={18}/>,action:()=>{deleteTask(task.id);setCtxTask(null);},danger:true},
     ].filter(Boolean);
     return(
