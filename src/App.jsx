@@ -124,6 +124,86 @@ const DEFAULT_DATA = {
   },
 };
 
+// ── Persistence — module-level so closures in push/undo/redo always find them ─
+const STORE_KEY = "dt_v5_users";
+const PREFS_KEY = "dt_v5_prefs";
+// Legacy keys from previous versions — checked once for migration
+const LEGACY_USER_KEYS = ["dt_v4_users", "dt_v3_users", "dtwv4"];
+const LEGACY_PREF_KEYS = ["dt_v4_prefs", "dt_v3_prefs"];
+
+const isValidUsers = (obj) =>
+  obj && typeof obj === "object" && Object.keys(obj).length > 0;
+
+const loadUsers = () => {
+  try {
+    // 1. Try current key first
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (isValidUsers(parsed)) return parsed;
+    }
+    // 2. Migrate from any legacy key — saves under new key so it's found next time
+    for (const oldKey of LEGACY_USER_KEYS) {
+      const oldRaw = localStorage.getItem(oldKey);
+      if (oldRaw) {
+        const oldParsed = JSON.parse(oldRaw);
+        if (isValidUsers(oldParsed)) {
+          localStorage.setItem(STORE_KEY, oldRaw); // migrate
+          localStorage.removeItem(oldKey);          // clean up old key
+          return oldParsed;
+        }
+      }
+    }
+  } catch(e) { /* fall through */ }
+  return DEFAULT_DATA;
+};
+
+const loadPrefs = () => {
+  try {
+    // 1. Try current key
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      // Normalize: old versions may not have all fields
+      return {
+        themeName:   p.themeName   || "light",
+        showUrgency: p.showUrgency !== false,
+        showBoarding:p.showBoarding !== false,
+        notifOn:     p.notifOn === true,
+      };
+    }
+    // 2. Migrate from legacy prefs key
+    for (const oldKey of LEGACY_PREF_KEYS) {
+      const oldRaw = localStorage.getItem(oldKey);
+      if (oldRaw) {
+        const p = JSON.parse(oldRaw);
+        const migrated = {
+          themeName:   p.themeName   || "light",
+          showUrgency: p.showUrgency !== false,
+          // Old versions never saved showBoarding — if they had data saved, onboarding was already seen
+          showBoarding:p.showBoarding !== false,
+          notifOn:     p.notifOn === true,
+        };
+        localStorage.setItem(PREFS_KEY, JSON.stringify(migrated));
+        localStorage.removeItem(oldKey);
+        return migrated;
+      }
+    }
+  } catch(e) {}
+  return { themeName:"light", showUrgency:true, showBoarding:true, notifOn:false };
+};
+
+const saveUsers = (data) => {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+};
+
+const savePrefs = (prefs) => {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch(e) {}
+};
+
+// ── Computed once at module level — never re-reads localStorage on re-renders ─
+const _INITIAL_PREFS = loadPrefs();
+
 const getStreakData = (users) => {
   const dates = new Set();
   Object.values(users).forEach(u =>
@@ -343,20 +423,21 @@ function SwipeRow({ task, rowNum, isLast, T, expandSubs, setExpandSubs, subInput
 export default function App() {
 
   // ── ALL state (hooks must be before any conditional return) ────────────────
-  const [users,        setUsers]       = useState(DEFAULT_DATA);
+  // All persistence helpers and _INITIAL_PREFS are module-level — computed once
+  const [users,        setUsers]       = useState(loadUsers);
   const [curUser,      setCurUser]     = useState(null);
   const [curTopic,     setCurTopic]    = useState(null);
-  const [themeName,    setThemeName]   = useState("light");
-  const [showUrgency,  setShowUrgency] = useState(true);
+  const [themeName,    setThemeName]   = useState(_INITIAL_PREFS.themeName || "light");
+  const [showUrgency,  setShowUrgency] = useState(_INITIAL_PREFS.showUrgency !== false);
   const [activeTab,    setActiveTab]   = useState("home");
   const [homeMemUser,  setHomeMemUser] = useState(null);
   const [homeMemTopic, setHomeMemTopic]= useState(null);
   const [tabAnim,      setTabAnim]     = useState("none");
   const prevTabRef = useRef("home");
 
-  const [showBoarding, setShowBoarding]= useState(true);
+  const [showBoarding, setShowBoarding]= useState(_INITIAL_PREFS.showBoarding !== false);
   const [boardStep,    setBoardStep]   = useState(0);
-  const [notifOn,      setNotifOn]     = useState(false);
+  const [notifOn,      setNotifOn]     = useState(_INITIAL_PREFS.notifOn === true);
 
   const [showSheet,    setShowSheet]   = useState(false);
   const [sheetTask,    setSheetTask]   = useState(null);
@@ -433,11 +514,16 @@ export default function App() {
 
   const push = (next) => {
     setUsers(next); setSaveStatus("saving");
+    saveUsers(next);
     const h=hist.slice(0,histIdx+1); h.push(next); setHist(h); setHistIdx(h.length-1);
     setTimeout(()=>setSaveStatus("saved"),500);
   };
-  const undo = () => { if(histIdx>0){const i=histIdx-1;setHistIdx(i);setUsers(hist[i]);} };
-  const redo = () => { if(histIdx<hist.length-1){const i=histIdx+1;setHistIdx(i);setUsers(hist[i]);} };
+  const undo = () => {
+    if(histIdx>0){ const i=histIdx-1; setHistIdx(i); setUsers(hist[i]); saveUsers(hist[i]); }
+  };
+  const redo = () => {
+    if(histIdx<hist.length-1){ const i=histIdx+1; setHistIdx(i); setUsers(hist[i]); saveUsers(hist[i]); }
+  };
 
   // ── Memos ──────────────────────────────────────────────────────────────────
   const debSearch  = useMemo(()=>debounce(v=>setSearchTerm(v),250),[]);
@@ -526,7 +612,17 @@ export default function App() {
     return()=>{ try{document.head.removeChild(el);}catch(_){} };
   },[]);
 
-  useEffect(()=>{ setSaveStatus("saving"); const t=setTimeout(()=>setSaveStatus("saved"),500); return()=>clearTimeout(t); },[users,themeName,showUrgency]);
+  useEffect(()=>{
+    setSaveStatus("saving"); const t=setTimeout(()=>setSaveStatus("saved"),500); return()=>clearTimeout(t);
+  },[users,themeName,showUrgency]);
+
+  // Belt-and-suspenders: also save users on every change (covers any path that bypasses push)
+  useEffect(()=>{ saveUsers(users); },[users]);
+
+  // Persist preferences whenever they change
+  useEffect(()=>{
+    savePrefs({ themeName, showUrgency, showBoarding, notifOn });
+  },[themeName, showUrgency, showBoarding, notifOn]);
   useEffect(()=>{
     if(activeTab==="calendar"&&stripRef.current){
       setTimeout(()=>{ const el=stripRef.current?.querySelector('[data-today="true"]'); if(el)el.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"}); },150);
@@ -623,7 +719,30 @@ export default function App() {
   const deleteTopic=(id)=>{ const n=JSON.parse(JSON.stringify(users)); delete n[curUser].topics[id]; push(n); if(curTopic===id)setCurTopic(null); };
   const saveTopicName=(id,name)=>{ if(name.trim()){const n=JSON.parse(JSON.stringify(users));n[curUser].topics[id].name=name.trim();push(n);} setEditTopicId(null); };
 
-  const reqNotif=async()=>setNotifOn(true);
+  const reqNotif = async () => {
+    if (!("Notification" in window)) {
+      // Browser doesn't support notifications — disable silently
+      setNotifOn(false);
+      return;
+    }
+    if (Notification.permission === "granted") {
+      setNotifOn(true);
+      return;
+    }
+    if (Notification.permission === "denied") {
+      // User previously blocked — can't re-prompt, just stay off
+      setNotifOn(false);
+      alert("Notifications are blocked. Please enable them in your browser/device settings, then try again.");
+      return;
+    }
+    // permission === "default" — ask the user
+    try {
+      const result = await Notification.requestPermission();
+      setNotifOn(result === "granted");
+    } catch(e) {
+      setNotifOn(false);
+    }
+  };
   const doExport=()=>alert("Export works in the real PWA.");
 
   // ── Styles ─────────────────────────────────────────────────────────────────
@@ -693,7 +812,12 @@ export default function App() {
 
   // ── Onboarding ─────────────────────────────────────────────────────────────
   const renderOnboarding=()=>{
-    const done=()=>setShowBoarding(false);
+    // done() saves SYNCHRONOUSLY before setState — guarantees prefs persist even if
+    // the user closes the app immediately after tapping the final button
+    const done=()=>{
+      savePrefs({ themeName, showUrgency, showBoarding:false, notifOn });
+      setShowBoarding(false);
+    };
     const steps=[
       { icon:"✅", title:"Welcome to Daily Tasks", subtitle:"Your personal task manager — built for focus and clarity.",
         content:(
@@ -913,7 +1037,44 @@ export default function App() {
       {/* Notifications */}
       <div style={S.label()}>Notifications</div>
       <div style={{...S.card(),marginBottom:20}}>
-        <div style={S.row()}><div style={{flex:1}}><div style={{display:"flex",alignItems:"center",gap:8,color:T.text,fontSize:15,fontWeight:500}}>{notifOn?<Bell size={16} color={T.success}/>:<BellOff size={16} color={T.muted}/>} Notifications</div><div style={{fontSize:13,color:T.muted,marginTop:2}}>{notifOn?"Enabled":"Tap to enable reminders"}</div></div>{!notifOn&&<button onClick={reqNotif} style={{backgroundColor:T.primary,color:"#fff",border:"none",borderRadius:10,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Enable</button>}</div>
+        <div style={{display:"flex",alignItems:"center",padding:"14px 16px",gap:12,cursor:"pointer"}}
+          onClick={async()=>{
+            if(!notifOn){
+              await reqNotif();
+              // reqNotif sets notifOn via setState — effect handles the save
+            } else {
+              // Save synchronously before setState in case app closes immediately
+              savePrefs({ themeName, showUrgency, showBoarding, notifOn:false });
+              setNotifOn(false);
+            }
+          }}>
+          <div style={{width:38,height:38,borderRadius:12,backgroundColor:notifOn?T.success+"22":T.cardAlt,
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .2s"}}>
+            {notifOn
+              ? <Bell size={18} color={T.success}/>
+              : <BellOff size={18} color={T.muted}/>
+            }
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:15,fontWeight:600,color:T.text}}>Notifications</div>
+            <div style={{fontSize:13,color:notifOn?T.success:T.muted,marginTop:2,fontWeight:notifOn?600:400}}>
+              {notifOn ? "✓ Enabled — tap to turn off" : "Off — tap to turn on"}
+            </div>
+          </div>
+          {/* iOS-style toggle — tapping anywhere on the row works */}
+          <div style={{
+            width:51, height:31, borderRadius:16, flexShrink:0, position:"relative",
+            backgroundColor:notifOn ? T.success : T.cardAlt2,
+            transition:"background-color .25s",
+            boxShadow:`inset 0 0 0 1px ${notifOn?"transparent":T.sepHard}`}}>
+            <span style={{
+              position:"absolute", top:2, left:notifOn?22:2,
+              width:27, height:27, borderRadius:14,
+              backgroundColor:"#fff",
+              boxShadow:"0 2px 6px rgba(0,0,0,0.28)",
+              transition:"left .25s cubic-bezier(0.34,1.56,0.64,1)"}}/>
+          </div>
+        </div>
       </div>
       {/* v5: Theme picker — 6 themes */}
       <div style={S.label()}>Theme</div>
@@ -957,6 +1118,8 @@ export default function App() {
         <button onClick={doExport} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer"}}><span style={{fontSize:15,color:T.text}}>Export Backup</span><Download size={16} color={T.primary}/></button>
         <div style={S.sep()}/>
         <button onClick={doExport} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer"}}><span style={{fontSize:15,color:T.text}}>Import Backup</span><Upload size={16} color={T.primary}/></button>
+        <div style={S.sep()}/>
+        <button onClick={()=>{ if(window.confirm("Reset all data? This cannot be undone.")){try{localStorage.removeItem(STORE_KEY);localStorage.removeItem(PREFS_KEY);}catch(e){} window.location.reload(); } }} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer"}}><span style={{fontSize:15,color:T.danger}}>Reset All Data</span><Trash2 size={16} color={T.danger}/></button>
         <div style={S.sep()}/><div style={{display:"flex",justifyContent:"flex-end",padding:"12px 16px"}}><span style={{fontSize:12,color:T.muted}}>{saveStatus==="saving"?"Saving…":"Saved ✓"}</span></div>
       </div>
     </div>
