@@ -1,36 +1,36 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  // Hardcode the repo name — this MUST match your GitHub repo name exactly
   base: '/Tasks-Keeper/',
-
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/*.png', 'icons/*.svg'],
+      includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
         name: 'Daily Tasks',
-        short_name: 'Tasks',
-        description: 'Personal task manager — manage tasks by user and topic',
-        theme_color: '#1F2937',
-        background_color: '#111827',
+        short_name: 'Daily Tasks',
+        description: 'Personal task manager — focus, clarity, momentum',
+        theme_color: '#F2F2F7',
+        background_color: '#F2F2F7',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/Tasks-Keeper/',
         scope: '/Tasks-Keeper/',
         icons: [
-          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
-        ]
+          { src: '/Tasks-Keeper/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/Tasks-Keeper/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+        ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        cleanupOutdatedCaches: true
-      }
-    })
-  ]
-})
+      },
+    }),
+  ],
+  build: { outDir: 'dist', sourcemap: false },
+});
