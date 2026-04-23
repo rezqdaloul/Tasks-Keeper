@@ -193,18 +193,36 @@ function SwipeRow({ task, rowNum, isLast, T, expandSubs, setExpandSubs, subInput
             transition:swiping ? "none" : "transform .22s cubic-bezier(0.25,0.46,0.45,0.94)",
             position:"relative", zIndex:1 }}>
 
-          {/* Up/Down reorder arrows — replace drag */}
+          {/* Up/Down reorder — large pill buttons, finger-friendly */}
           {!task.completed && (
-            <div style={{ display:"flex", flexDirection:"column", gap:1, flexShrink:0 }}>
-              <button onClick={() => onMoveUp(task.id)} disabled={!canMoveUp}
-                style={{ background:"none", border:"none", padding:"1px 3px", cursor:canMoveUp?"pointer":"default",
-                  color:canMoveUp?T.muted:T.hint, lineHeight:1 }}>
-                <ChevronUp size={13}/>
+            <div style={{ display:"flex", flexDirection:"column", gap:4, flexShrink:0 }}>
+              <button
+                onClick={e => { e.stopPropagation(); onMoveUp(task.id); }}
+                disabled={!canMoveUp}
+                style={{
+                  width:28, height:28, borderRadius:8, border:"none", cursor:canMoveUp?"pointer":"default",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  backgroundColor:canMoveUp ? (T.cardAlt2 || "rgba(120,120,128,0.16)") : "transparent",
+                  color:canMoveUp ? T.text : T.hint,
+                  opacity:canMoveUp ? 1 : 0.3,
+                  transition:"all .15s",
+                  WebkitTapHighlightColor:"transparent",
+                }}>
+                <ChevronUp size={16} strokeWidth={2.5}/>
               </button>
-              <button onClick={() => onMoveDown(task.id)} disabled={!canMoveDown}
-                style={{ background:"none", border:"none", padding:"1px 3px", cursor:canMoveDown?"pointer":"default",
-                  color:canMoveDown?T.muted:T.hint, lineHeight:1 }}>
-                <ChevronDown size={13}/>
+              <button
+                onClick={e => { e.stopPropagation(); onMoveDown(task.id); }}
+                disabled={!canMoveDown}
+                style={{
+                  width:28, height:28, borderRadius:8, border:"none", cursor:canMoveDown?"pointer":"default",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  backgroundColor:canMoveDown ? (T.cardAlt2 || "rgba(120,120,128,0.16)") : "transparent",
+                  color:canMoveDown ? T.text : T.hint,
+                  opacity:canMoveDown ? 1 : 0.3,
+                  transition:"all .15s",
+                  WebkitTapHighlightColor:"transparent",
+                }}>
+                <ChevronDown size={16} strokeWidth={2.5}/>
               </button>
             </div>
           )}
@@ -479,7 +497,7 @@ export default function App() {
     }
   },[activeTab]);
 
-  useEffect(()=>{ if(editUserId&&editURef.current){editURef.current.focus();editURef.current.select();} },[editUserId]);
+  useEffect(()=>{ setShowSearch(false); setSearchTerm(""); },[curTopic]);
   useEffect(()=>{ if(editTopicId&&editTRef.current){editTRef.current.focus();editTRef.current.select();} },[editTopicId]);
   useEffect(()=>{ if(showSheet&&sheetRef.current) setTimeout(()=>sheetRef.current?.focus(),80); },[showSheet]);
   useEffect(()=>{ if(globalSearch&&gSearchRef.current) setTimeout(()=>gSearchRef.current?.focus(),80); },[globalSearch]);
@@ -562,12 +580,12 @@ export default function App() {
     label:(color)=>({fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,color:color||T.muted,marginBottom:8,paddingLeft:4}),
   };
 
-  const urBtns=()=>(
+  const urBtns=()=>{ return (
     <div style={{display:"flex",gap:2}}>
       <button onClick={undo} disabled={histIdx===0} title="Undo" style={S.ghost({padding:6,color:histIdx===0?T.hint:T.primary})}><Undo2 size={18}/></button>
       <button onClick={redo} disabled={histIdx>=hist.length-1} title="Redo" style={S.ghost({padding:6,color:histIdx>=hist.length-1?T.hint:T.primary})}><Redo2 size={18}/></button>
     </div>
-  );
+  ); };
 
   // ── Tab bar with smart Home ─────────────────────────────────────────────────
   const handleTab=(tabId)=>{
@@ -576,8 +594,11 @@ export default function App() {
         setCurUser(homeMemUser); setCurTopic(homeMemTopic); setActiveTab("home");
       } else { setCurUser(null); setCurTopic(null); }
     } else {
-      if(activeTab==="home"){ setHomeMemUser(curUser); setHomeMemTopic(curTopic); }
-      // Tab transition animation
+      if(activeTab==="home"){
+        setHomeMemUser(curUser); setHomeMemTopic(curTopic);
+        // Reset topic search when leaving Home
+        setShowSearch(false); setSearchTerm("");
+      }
       const tabOrder={home:0,today:1,calendar:2,settings:3};
       const dir=tabOrder[tabId]>tabOrder[activeTab]?"in-right":"in-left";
       setTabAnim(dir);
@@ -590,7 +611,7 @@ export default function App() {
   const showFab = activeTab==="home"&&curUser&&curTopic;
   const isDark  = theme==="dark";
 
-  const TabBar=()=>(
+  const TabBar=()=>{ return (
     <div style={{flexShrink:0,padding:"6px 14px 10px",display:"flex",alignItems:"center",gap:10}}>
       <div style={{flex:1,display:"flex",alignItems:"center",
         backgroundColor:isDark?"rgba(44,44,46,0.96)":"rgba(255,255,255,0.96)",
@@ -615,7 +636,7 @@ export default function App() {
         </button>
       )}
     </div>
-  );
+  ); };
 
   const contentAnim = tabAnim==="in-right" ? {animation:"dtSlideInRight 0.28s cubic-bezier(0.25,0.46,0.45,0.94)"}
     : tabAnim==="in-left"  ? {animation:"dtSlideInLeft  0.28s cubic-bezier(0.25,0.46,0.45,0.94)"}
@@ -738,7 +759,7 @@ export default function App() {
     const today=new Date(),todayStr=today.toISOString().split("T")[0];
     const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
     const agendaLabel=(dt,ds)=>{ const diff=Math.ceil((new Date(ds)-new Date(todayStr))/86400000); return{sub:diff===0?"Today":diff===1?"Tomorrow":diff===-1?"Yesterday":dt.toLocaleDateString("en-US",{weekday:"long"}),isToday:diff===0,isPast:diff<0}; };
-    const PriBadge=({p})=>{ const m={urgent:{bg:T.rRedBg,tx:T.rRedTx,l:"Urgent"},high:{bg:T.rRedBg,tx:T.rRedTx,l:"High"},normal:{bg:T.primaryDim,tx:T.primary,l:"Normal"},low:{bg:T.rOrgBg,tx:T.rOrgTx,l:"Low"}}; const s=m[p]||m.normal; return<span style={{backgroundColor:s.bg,color:s.tx,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:20,textTransform:"uppercase",whiteSpace:"nowrap"}}>{s.l}</span>; };
+    const PriBadge=({p})=>{ const m={urgent:{bg:T.rRedBg,tx:T.rRedTx,l:"Urgent"},high:{bg:T.rRedBg,tx:T.rRedTx,l:"High"},normal:{bg:T.primaryDim,tx:T.primary,l:"Normal"},low:{bg:T.rOrgBg,tx:T.rOrgTx,l:"Low"}}; const s=m[p]||m.normal; return <span style={{backgroundColor:s.bg,color:s.tx,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:20,textTransform:"uppercase",whiteSpace:"nowrap"}}>{s.l}</span>; };
     const firstDay=new Date(calYear,calMonth,1).getDay(),dim=new Date(calYear,calMonth+1,0).getDate();
     const cells=[...Array(firstDay).fill(null),...Array.from({length:dim},(_,i)=>i+1)];
     const toDS=(day)=>calYear+"-"+String(calMonth+1).padStart(2,"0")+"-"+String(day).padStart(2,"0");
@@ -798,7 +819,7 @@ export default function App() {
           <div style={{flex:1,overflowY:"auto"}}>
             <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",backgroundColor:T.card,padding:"4px 8px 0"}}>{["S","M","T","W","T","F","S"].map((d,i)=>(<div key={i} style={{textAlign:"center",padding:"4px 0",fontSize:11,fontWeight:700,color:T.muted}}>{d}</div>))}</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,padding:8,backgroundColor:T.systemBg}}>
-              {cells.map((day,idx)=>{ if(!day)return<div key={"e-"+idx}/>; const ds=toDS(day),pc=datePriColor(ds),isTod=ds===todayStr,isSel=ds===calSel,cnt=allDated.filter(t=>t.dueDate===ds).length;
+              {cells.map((day,idx)=>{ if(!day)return <div key={"e-"+idx}/>; const ds=toDS(day),pc=datePriColor(ds),isTod=ds===todayStr,isSel=ds===calSel,cnt=allDated.filter(t=>t.dueDate===ds).length;
                 return(<button key={ds} onClick={()=>setCalSel(isSel?null:ds)} style={{position:"relative",aspectRatio:"1",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",borderRadius:12,cursor:"pointer",outline:"none",padding:2,transition:"all .15s",border:isSel?`2px solid ${T.primary}`:pc?`1.5px solid ${pc.bd}`:"1.5px solid transparent",backgroundColor:isSel?T.primaryDim:pc?pc.bg:T.card}}>
                   {isTod&&<div style={{position:"absolute",inset:2,borderRadius:10,border:`2px solid ${T.primary}`,opacity:0.6,pointerEvents:"none"}}/>}
                   <span style={{fontSize:14,fontWeight:isTod?800:400,color:pc?pc.tx:T.text,lineHeight:1}}>{day}</span>
@@ -812,7 +833,7 @@ export default function App() {
             <div style={{padding:"12px 12px 24px"}}>
               {!calSel?<div style={{textAlign:"center",padding:"32px 0",color:T.muted,fontSize:14}}>Tap a date to see its tasks</div>:(()=>{
                 const tasks=allDated.filter(t=>t.dueDate===calSel);
-                if(!tasks.length)return<div style={{textAlign:"center",padding:"24px 0",color:T.muted,fontSize:14}}>No tasks on {new Date(calSel+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>;
+                if(!tasks.length)return <div style={{textAlign:"center",padding:"24px 0",color:T.muted,fontSize:14}}>No tasks on {new Date(calSel+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>;
                 return(<div><div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:8}}>{new Date(calSel+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}<span style={{color:T.muted,fontWeight:400,marginLeft:6}}>· {tasks.length} task{tasks.length>1?"s":""}</span></div>
                 <div style={S.card()}>{tasks.map((task,i)=>(<div key={task.userId+"-"+task.id} style={{padding:"12px 16px",display:"flex",gap:12,borderBottom:i<tasks.length-1?`0.5px solid ${T.sep}`:"none"}}>
                   <div style={{width:3,borderRadius:3,flexShrink:0,alignSelf:"stretch",backgroundColor:task.priority==="urgent"||task.priority==="high"?T.rRedDt:task.priority==="normal"?T.primary:T.rOrgDt}}/>
@@ -827,7 +848,7 @@ export default function App() {
   };
 
   // ── Settings ─────────────────────────────────────────────────────────────────
-  const renderSettings=()=>(
+  const renderSettings=()=>{ return (
     <div style={{flex:1,overflowY:"auto",padding:"20px 16px"}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
         <div style={{fontSize:28,fontWeight:800,color:T.text,letterSpacing:-0.5}}>Settings</div>{urBtns()}
@@ -862,10 +883,10 @@ export default function App() {
         <div style={S.sep()}/><div style={{display:"flex",justifyContent:"flex-end",padding:"12px 16px"}}><span style={{fontSize:12,color:T.muted}}>{saveStatus==="saving"?"Saving…":"Saved ✓"}</span></div>
       </div>
     </div>
-  );
+  ); };
 
   // ── Users ────────────────────────────────────────────────────────────────────
-  const renderUsers=()=>(
+  const renderUsers=()=>{ return (
     <div style={{flex:1,overflowY:"auto"}}>
       <div style={{padding:"28px 20px 16px",backgroundColor:T.card,borderBottom:`0.5px solid ${T.sep}`}}>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
@@ -901,7 +922,7 @@ export default function App() {
       </div>
       <div style={{height:24}}/>
     </div>
-  );
+  ); };
 
   // ── Topics ────────────────────────────────────────────────────────────────────
   const renderTopics=()=>{
@@ -968,20 +989,20 @@ export default function App() {
         <div style={{flex:1,overflowY:"auto"}}>
           {pinned.length>0&&(<div style={{marginTop:16,paddingBottom:4}}><div style={{...S.label(T.star),display:"flex",alignItems:"center",gap:5,marginLeft:16}}><Star size={10} fill={T.star} color={T.star}/> Pinned</div>
             <div style={{...S.card(),margin:"0 12px"}}>
-              {pinned.map((t,i)=>{ rowNum++; const idxInList=incompleteIds.indexOf(t.id); return<SwipeRow key={t.id} task={t} rowNum={rowNum} isLast={i===pinned.length-1} onMoveUp={()=>moveTask(t.id,-1)} onMoveDown={()=>moveTask(t.id,1)} canMoveUp={idxInList>0} canMoveDown={idxInList<incompleteIds.length-1} {...rowProps}/>; })}
+              {pinned.map((t,i)=>{ rowNum++; const idxInList=incompleteIds.indexOf(t.id); return <SwipeRow key={t.id} task={t} rowNum={rowNum} isLast={i===pinned.length-1} onMoveUp={()=>moveTask(t.id,-1)} onMoveDown={()=>moveTask(t.id,1)} canMoveUp={idxInList>0} canMoveDown={idxInList<incompleteIds.length-1} {...rowProps}/>; })}
             </div>
           </div>)}
           {regular.length>0&&(<div style={{marginTop:16,paddingBottom:4}}>
             {pinned.length>0&&<div style={{...S.label(),marginLeft:16}}>Tasks</div>}
             <div style={{...S.card(),margin:"0 12px"}}>
-              {regular.map((t,i)=>{ rowNum++; const idxInList=incompleteIds.indexOf(t.id); return<SwipeRow key={t.id} task={t} rowNum={rowNum} isLast={i===regular.length-1} onMoveUp={()=>moveTask(t.id,-1)} onMoveDown={()=>moveTask(t.id,1)} canMoveUp={idxInList>0} canMoveDown={idxInList<incompleteIds.length-1} {...rowProps}/>; })}
+              {regular.map((t,i)=>{ rowNum++; const idxInList=incompleteIds.indexOf(t.id); return <SwipeRow key={t.id} task={t} rowNum={rowNum} isLast={i===regular.length-1} onMoveUp={()=>moveTask(t.id,-1)} onMoveDown={()=>moveTask(t.id,1)} canMoveUp={idxInList>0} canMoveDown={idxInList<incompleteIds.length-1} {...rowProps}/>; })}
             </div>
           </div>)}
           {completed.length>0&&(<div style={{margin:"16px 12px 0"}}>
             <button onClick={()=>setShowDone(v=>!v)} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:0.8,marginBottom:6,padding:"0 4px"}}>
               <ChevronDown size={12} style={{transform:showDone?"none":"rotate(-90deg)",transition:"transform .2s"}}/>Completed ({completed.length})
             </button>
-            {showDone&&(<div style={S.card()}>{completed.map((t,i)=>{rowNum++;return<SwipeRow key={t.id} task={t} rowNum={rowNum} isLast={i===completed.length-1} onMoveUp={()=>{}} onMoveDown={()=>{}} canMoveUp={false} canMoveDown={false} {...rowProps}/>;})}</div>)}
+            {showDone&&(<div style={S.card()}>{completed.map((t,i)=>{rowNum++;return <SwipeRow key={t.id} task={t} rowNum={rowNum} isLast={i===completed.length-1} onMoveUp={()=>{}} onMoveDown={()=>{}} canMoveUp={false} canMoveDown={false} {...rowProps}/>;})}</div>)}
           </div>)}
           {filteredTasks.length===0&&(<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:12}}>📋</div><div style={{fontSize:18,fontWeight:700,color:T.text}}>No tasks</div><div style={{fontSize:14,color:T.muted,marginTop:6}}>{filterPill!=="all"?"Try a different filter":"Tap + to add your first task"}</div></div>)}
           <div style={{height:72}}/>
@@ -1002,7 +1023,7 @@ export default function App() {
   };
 
   // ── Sheet ─────────────────────────────────────────────────────────────────────
-  const renderSheet=()=>(
+  const renderSheet=()=>{ return (
     <div style={{position:"absolute",inset:0,zIndex:80,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
       <div onClick={()=>{setShowSheet(false);setSheetTask(null);}} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.45)",animation:"dtOverlayIn 0.2s ease"}}/>
       <div style={{position:"relative",backgroundColor:T.card,borderRadius:"24px 24px 0 0",zIndex:1,maxHeight:"90%",overflowY:"auto",animation:"dtSheetUp 0.32s cubic-bezier(0.32,0.72,0,1)"}}>
@@ -1042,7 +1063,7 @@ export default function App() {
         <div style={{height:32}}/>
       </div>
     </div>
-  );
+  ); };
 
   // ── Context menu ──────────────────────────────────────────────────────────────
   const renderCtxMenu=()=>{ if(!ctxTask)return null; const task=ctxTask;
@@ -1122,7 +1143,7 @@ export default function App() {
     return(
       <div style={{backgroundColor:T.card,borderBottom:`0.5px solid ${T.sep}`,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",padding:"12px 16px",gap:8}}>
-          <button onClick={()=>{if(curTopic)setCurTopic(null);else setCurUser(null);}} style={S.ghost({display:"flex",alignItems:"center",gap:4,padding:"4px 0",marginRight:4})}>
+          <button onClick={()=>{if(curTopic){setCurTopic(null);setShowSearch(false);setSearchTerm("");}else setCurUser(null);}} style={S.ghost({display:"flex",alignItems:"center",gap:4,padding:"4px 0",marginRight:4})}>
             <ArrowLeft size={18}/><span style={{fontSize:16}}>Back</span>
           </button>
           <div style={{flex:1}}><div style={{fontSize:17,fontWeight:700,color:T.text}}>{title}</div><div style={{fontSize:12,color:T.muted,marginTop:1}}>{subtitle}</div></div>
