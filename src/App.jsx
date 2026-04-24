@@ -170,6 +170,8 @@ const loadPrefs = () => {
         showUrgency: p.showUrgency !== false,
         showBoarding:p.showBoarding !== false,
         notifOn:     p.notifOn === true,
+        appName:     p.appName     || "Daily Tasks",
+        accentColor: p.accentColor || "",
       };
     }
     // 2. Migrate from legacy prefs key
@@ -183,6 +185,8 @@ const loadPrefs = () => {
           // Old versions never saved showBoarding — if they had data saved, onboarding was already seen
           showBoarding:p.showBoarding !== false,
           notifOn:     p.notifOn === true,
+          appName:     p.appName     || "Daily Tasks",
+          accentColor: p.accentColor || "",
         };
         localStorage.setItem(PREFS_KEY, JSON.stringify(migrated));
         localStorage.removeItem(oldKey);
@@ -190,7 +194,7 @@ const loadPrefs = () => {
       }
     }
   } catch(e) {}
-  return { themeName:"light", showUrgency:true, showBoarding:true, notifOn:false };
+  return { themeName:"light", showUrgency:true, showBoarding:true, notifOn:false, appName:"Daily Tasks", accentColor:"" };
 };
 
 const saveUsers = (data) => {
@@ -429,6 +433,9 @@ export default function App() {
   const [curTopic,     setCurTopic]    = useState(null);
   const [themeName,    setThemeName]   = useState(_INITIAL_PREFS.themeName || "light");
   const [showUrgency,  setShowUrgency] = useState(_INITIAL_PREFS.showUrgency !== false);
+  const [accentColor,  setAccentColor] = useState(_INITIAL_PREFS.accentColor || "");
+  const [appName,      setAppName]     = useState(_INITIAL_PREFS.appName || "Daily Tasks");
+  const [editingAppName, setEditingAppName] = useState(false);
   const [activeTab,    setActiveTab]   = useState("home");
   const [homeMemUser,  setHomeMemUser] = useState(null);
   const [homeMemTopic, setHomeMemTopic]= useState(null);
@@ -461,6 +468,7 @@ export default function App() {
 
   // v5: Focus / Pomodoro
   const [focusTask,    setFocusTask]   = useState(null);
+  const [focusDuration,setFocusDuration]=useState(25); // selected minutes
   const [focusSecs,    setFocusSecs]   = useState(25 * 60);
   const [focusRunning, setFocusRunning]= useState(false);
   const [focusFinished,setFocusFinished]=useState(false);
@@ -499,7 +507,10 @@ export default function App() {
   const gSearchRef= useRef(null);
   const notifFiredRef = useRef(new Set()); // tracks task IDs already notified this session
 
-  const T = THEMES[themeName] || THEMES.light;
+  const _baseT = THEMES[themeName] || THEMES.light;
+  const T = accentColor
+    ? { ..._baseT, primary: accentColor, primaryDim: accentColor + "22" }
+    : _baseT;
   const isDark = themeName !== "light" && themeName !== "sand";
   const curUserData  = curUser  ? users[curUser]  : null;
   const curTopicData = curUser && curTopic ? users[curUser]?.topics[curTopic] : null;
@@ -622,8 +633,8 @@ export default function App() {
 
   // Persist preferences whenever they change
   useEffect(()=>{
-    savePrefs({ themeName, showUrgency, showBoarding, notifOn });
-  },[themeName, showUrgency, showBoarding, notifOn]);
+    savePrefs({ themeName, showUrgency, showBoarding, notifOn, appName, accentColor });
+  },[themeName, showUrgency, showBoarding, notifOn, appName, accentColor]);
 
   // Fire notifications on mount (after 2s) and whenever the page becomes visible
   useEffect(()=>{
@@ -741,7 +752,7 @@ export default function App() {
     // Always allow the UI toggle to turn on — save state synchronously first
     // so it persists even if the permission prompt is dismissed or unavailable.
     setNotifOn(true);
-    savePrefs({ themeName, showUrgency, showBoarding, notifOn: true });
+    savePrefs({ themeName, showUrgency, showBoarding, notifOn: true, appName, accentColor });
 
     // If the Notification API isn't available (Safari browser / older iOS),
     // the toggle still works — notifications will activate once installed as a PWA.
@@ -762,7 +773,7 @@ export default function App() {
       if (result !== "granted") {
         // User denied the prompt — turn toggle back off
         setNotifOn(false);
-        savePrefs({ themeName, showUrgency, showBoarding, notifOn: false });
+        savePrefs({ themeName, showUrgency, showBoarding, notifOn: false, appName, accentColor });
       }
     } catch(e) {
       // requestPermission threw (some browsers require a user gesture context).
@@ -973,7 +984,7 @@ export default function App() {
     // done() saves SYNCHRONOUSLY before setState — guarantees prefs persist even if
     // the user closes the app immediately after tapping the final button
     const done=()=>{
-      savePrefs({ themeName, showUrgency, showBoarding:false, notifOn });
+      savePrefs({ themeName, showUrgency, showBoarding:false, notifOn, appName, accentColor });
       setShowBoarding(false);
     };
     const steps=[
@@ -1202,7 +1213,7 @@ export default function App() {
               // reqNotif sets notifOn via setState — effect handles the save
             } else {
               // Save synchronously before setState in case app closes immediately
-              savePrefs({ themeName, showUrgency, showBoarding, notifOn:false });
+              savePrefs({ themeName, showUrgency, showBoarding, notifOn:false, appName, accentColor });
               setNotifOn(false);
             }
           }}>
@@ -1255,6 +1266,40 @@ export default function App() {
           })}
         </div>
       </div>
+      {/* Accent Color */}
+      <div style={S.label()}>Accent Color</div>
+      <div style={{...S.card(),marginBottom:20,padding:"14px 16px"}}>
+        <div style={{fontSize:13,color:T.muted,marginBottom:12}}>Override the primary color across all themes</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:12}}>
+          {["#007AFF","#FF3B30","#FF9500","#34C759","#AF52DE","#FF2D55",
+            "#00C7BE","#5856D6","#FF6B6B","#4ECDC4","#F7DC6F","#E74C3C"].map(c=>(
+            <button key={c} onClick={()=>setAccentColor(c)}
+              style={{width:32,height:32,borderRadius:16,border:`3px solid ${accentColor===c?T.text:"transparent"}`,
+                backgroundColor:c,cursor:"pointer",transition:"border .15s",flexShrink:0}}/>
+          ))}
+          {/* Native color picker */}
+          <label style={{width:32,height:32,borderRadius:16,border:`2px dashed ${T.sepHard}`,
+            display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",
+            fontSize:18,color:T.muted,overflow:"hidden",flexShrink:0,position:"relative"}}>
+            <span style={{pointerEvents:"none"}}>+</span>
+            <input type="color" value={accentColor||T.primary}
+              onChange={e=>setAccentColor(e.target.value)}
+              style={{position:"absolute",inset:0,opacity:0,cursor:"pointer",width:"100%",height:"100%"}}/>
+          </label>
+        </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:20,height:20,borderRadius:10,backgroundColor:accentColor||T.primary,border:`1px solid ${T.sep}`}}/>
+            <span style={{fontSize:13,color:T.muted}}>{accentColor ? accentColor.toUpperCase() : "Theme default"}</span>
+          </div>
+          {accentColor&&(
+            <button onClick={()=>setAccentColor("")}
+              style={{fontSize:13,color:T.danger,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>
+              Reset to default
+            </button>
+          )}
+        </div>
+      </div>
       {/* Urgency */}
       <div style={S.label()}>Urgency Colors</div>
       <div style={{...S.card(),marginBottom:20}}>
@@ -1288,7 +1333,22 @@ export default function App() {
     <div style={{flex:1,overflowY:"auto",minHeight:0}}>
       <div style={{padding:"28px 20px 16px",backgroundColor:T.card,borderBottom:`0.5px solid ${T.sep}`}}>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
-          <div style={{fontSize:32,fontWeight:800,color:T.text,letterSpacing:-0.5}}>Daily Tasks</div>
+          {editingAppName ? (
+            <input
+              autoFocus
+              defaultValue={appName}
+              style={{fontSize:32,fontWeight:800,color:T.text,letterSpacing:-0.5,
+                background:"none",border:"none",borderBottom:`2px solid ${T.primary}`,
+                outline:"none",width:"100%",padding:"0 0 2px 0",fontFamily:"inherit"}}
+              onBlur={e=>{ const v=e.target.value.trim(); if(v) setAppName(v); setEditingAppName(false); }}
+              onKeyDown={e=>{ if(e.key==="Enter"){const v=e.target.value.trim();if(v)setAppName(v);setEditingAppName(false);} if(e.key==="Escape")setEditingAppName(false); }}
+            />
+          ) : (
+            <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setEditingAppName(true)}>
+              <div style={{fontSize:32,fontWeight:800,color:T.text,letterSpacing:-0.5}}>{appName}</div>
+              <Edit3 size={16} color={T.muted} style={{flexShrink:0,marginTop:4}}/>
+            </div>
+          )}
           <div style={{display:"flex",gap:4,alignItems:"center"}}>{urBtns()}<button onClick={()=>setGlobalSearch(true)} style={S.ghost({padding:6,color:T.muted})}><Search size={18}/></button></div>
         </div>
         <div style={{fontSize:14,color:T.muted,marginTop:3}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
@@ -1507,7 +1567,7 @@ export default function App() {
       {label:task.completed?"Mark Incomplete":"Mark Complete",icon:<CheckCircle2 size={18}/>,action:()=>{toggleTask(task.id);setCtxTask(null);}},
       {label:task.pinned?"Unpin":"Pin to Top",icon:<Star size={18} fill={task.pinned?T.star:"none"} color={T.star}/>,action:()=>{togglePin(task.id);setCtxTask(null);}},
       {label:"Edit",icon:<Edit3 size={18}/>,action:()=>openEdit(task)},
-      {label:"Focus Mode",icon:<Zap size={18}/>,action:()=>{ setFocusTask(task); setFocusSecs(25*60); setFocusRunning(false); setFocusFinished(false); setCtxTask(null); }},
+      {label:"Focus Mode",icon:<Zap size={18}/>,action:()=>{ setFocusTask(task); setFocusSecs(focusDuration*60); setFocusRunning(false); setFocusFinished(false); setCtxTask(null); }},
       task.dueDate?{label:"Add to Calendar",icon:<CalendarPlus size={18}/>,action:()=>{addToCalendar(task);setCtxTask(null);}}:null,
       {label:"Delete",icon:<Trash2 size={18}/>,action:()=>{deleteTask(task.id);setCtxTask(null);},danger:true},
     ].filter(Boolean);
@@ -1532,27 +1592,46 @@ export default function App() {
   // ── v5: Focus Mode (Pomodoro) overlay ─────────────────────────────────────
   const renderFocus=()=>{ if(!focusTask)return null;
     const mins=Math.floor(focusSecs/60), secs=focusSecs%60;
-    const progress=(1-(focusSecs/(25*60)))*283; // circle circumference = 283
+    const totalSecs = focusDuration * 60;
+    const progress=(1-(focusSecs/totalSecs))*628; // SVG circumference = 2π×100 ≈ 628
+    const DURATIONS=[5,10,15,25,30,45,60];
     return(
       <div style={{position:"absolute",inset:0,zIndex:92,display:"flex",flexDirection:"column",backgroundColor:T.systemBg,animation:"dtOverlayIn 0.25s ease"}}>
         {/* Header */}
         <div style={{padding:"16px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <button onClick={()=>{setFocusTask(null);setFocusRunning(false);clearInterval(focusInterval.current);}} style={S.ghost({color:T.muted,fontSize:15})}>✕ Exit</button>
+          <button onClick={()=>{setFocusTask(null);setFocusRunning(false);setFocusFinished(false);clearInterval(focusInterval.current);}} style={S.ghost({color:T.muted,fontSize:15})}>✕ Exit</button>
           <div style={{fontSize:13,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:0.8}}>Focus Mode</div>
           <div style={{width:60}}/>
         </div>
         {/* Task name */}
-        <div style={{textAlign:"center",padding:"0 32px 24px"}}>
+        <div style={{textAlign:"center",padding:"0 32px 16px"}}>
           <div style={{fontSize:18,fontWeight:700,color:T.text,lineHeight:1.4}}>{focusTask.text}</div>
-          {focusTask.estimate&&<div style={{fontSize:13,color:T.muted,marginTop:6}}>Estimated: {EST_LABELS[focusTask.estimate]}</div>}
+          {focusTask.estimate&&<div style={{fontSize:13,color:T.muted,marginTop:4}}>Estimated: {EST_LABELS[focusTask.estimate]}</div>}
         </div>
+        {/* Duration selector — only shown before timer starts */}
+        {!focusRunning && !focusFinished && (
+          <div style={{padding:"0 24px 16px"}}>
+            <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:0.8,textAlign:"center",marginBottom:10}}>Duration</div>
+            <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
+              {DURATIONS.map(d=>(
+                <button key={d} onClick={()=>{ setFocusDuration(d); setFocusSecs(d*60); }}
+                  style={{padding:"8px 14px",borderRadius:20,border:"none",cursor:"pointer",
+                    fontSize:13,fontWeight:600,transition:"all .15s",
+                    backgroundColor:focusDuration===d?T.primary:T.cardAlt,
+                    color:focusDuration===d?"#fff":T.muted}}>
+                  {d}m
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Timer ring */}
         <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:32}}>
           <div style={{position:"relative",width:220,height:220}}>
             <svg width="220" height="220" style={{transform:"rotate(-90deg)"}}>
               <circle cx="110" cy="110" r="100" fill="none" stroke={T.cardAlt} strokeWidth="8"/>
               <circle cx="110" cy="110" r="100" fill="none" stroke={focusFinished?T.success:T.primary} strokeWidth="8"
-                strokeDasharray="628" strokeDashoffset={628-Math.max(0,Math.min(628,progress*2.22))}
+                strokeDasharray="628" strokeDashoffset={Math.max(0,628-progress)}
                 style={{transition:"stroke-dashoffset 1s linear",strokeLinecap:"round"}}/>
             </svg>
             <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
@@ -1570,7 +1649,12 @@ export default function App() {
           </div>
           {/* Controls */}
           <div style={{display:"flex",gap:16,alignItems:"center"}}>
-            <button onClick={()=>{setFocusSecs(25*60);setFocusRunning(false);setFocusFinished(false);clearInterval(focusInterval.current);}}
+            <button onClick={()=>{
+                setFocusSecs(focusDuration*60);
+                setFocusRunning(false);
+                setFocusFinished(false);
+                clearInterval(focusInterval.current);
+              }}
               style={{width:48,height:48,borderRadius:24,backgroundColor:T.cardAlt,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:T.muted}}>
               <RotateCcw size={20}/>
             </button>
@@ -1587,7 +1671,9 @@ export default function App() {
               </button>
             )}
           </div>
-          <div style={{fontSize:13,color:T.muted}}>{focusRunning?"Stay focused — you've got this":"Press play to start your 25-minute session"}</div>
+          <div style={{fontSize:13,color:T.muted}}>
+            {focusFinished ? "Session complete!" : focusRunning ? "Stay focused — you've got this" : `Press play to start your ${focusDuration}-minute session`}
+          </div>
         </div>
       </div>
     );
