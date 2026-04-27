@@ -172,6 +172,7 @@ const loadPrefs = () => {
         notifOn:     p.notifOn === true,
         appName:     p.appName     || "Daily Tasks",
         accentColor: p.accentColor || "",
+        lang:        p.lang        || "en",
       };
     }
     // 2. Migrate from legacy prefs key
@@ -187,6 +188,7 @@ const loadPrefs = () => {
           notifOn:     p.notifOn === true,
           appName:     p.appName     || "Daily Tasks",
           accentColor: p.accentColor || "",
+          lang:        p.lang        || "en",
         };
         localStorage.setItem(PREFS_KEY, JSON.stringify(migrated));
         localStorage.removeItem(oldKey);
@@ -194,7 +196,7 @@ const loadPrefs = () => {
       }
     }
   } catch(e) {}
-  return { themeName:"light", showUrgency:true, showBoarding:true, notifOn:false, appName:"Daily Tasks", accentColor:"" };
+  return { themeName:"light", showUrgency:true, showBoarding:true, notifOn:false, appName:"Daily Tasks", accentColor:"", lang:"en" };
 };
 
 const saveUsers = (data) => {
@@ -207,6 +209,108 @@ const savePrefs = (prefs) => {
 
 // ── Computed once at module level — never re-reads localStorage on re-renders ─
 const _INITIAL_PREFS = loadPrefs();
+
+// ── Hijri date calculator (Umm al-Qura approximation — no external library) ─
+const HIJRI_MONTHS = ["محرم","صفر","ربيع الأول","ربيع الآخر","جمادى الأولى","جمادى الآخرة","رجب","شعبان","رمضان","شوال","ذو القعدة","ذو الحجة"];
+const toHijri = (date) => {
+  const jd = Math.floor((date.getTime() / 86400000) + 2440587.5);
+  let l = jd - 1948440 + 10632;
+  const n = Math.floor((l - 1) / 10631);
+  l = l - 10631 * n + 354;
+  const j = Math.floor((10985 - l) / 5316) * Math.floor((50 * l) / 17719)
+    + Math.floor(l / 5670) * Math.floor((43 * l) / 15238);
+  l = l - Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50)
+    - Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29;
+  const month = Math.floor((24 * l) / 709);
+  const day   = l - Math.floor((709 * month) / 24);
+  const year  = 30 * n + j - 30;
+  return { year, month, monthName: HIJRI_MONTHS[month - 1] || "", day };
+};
+const ISLAMIC_DATES = [
+  {m:1,d:10,label:"عاشوراء"},{m:8,d:15,label:"نصف شعبان"},{m:9,d:1,label:"رمضان"},
+  {m:9,d:27,label:"ليلة القدر (تقديرية)"},{m:10,d:1,label:"عيد الفطر"},
+  {m:12,d:1,label:"عشر ذي الحجة"},{m:12,d:9,label:"يوم عرفة"},{m:12,d:10,label:"عيد الأضحى"},
+];
+const isIslamicSpecial = (gregorianDateStr) => {
+  const h = toHijri(new Date(gregorianDateStr+"T12:00:00"));
+  return ISLAMIC_DATES.find(x => x.m===h.month && x.d===h.day) || null;
+};
+
+// ── Dhikr persistence ──────────────────────────────────────────────────────
+const DHIKR_KEY = "dt_v5_dhikr";
+const HABITS_KEY = "dt_v5_habits";
+const DHIKR_DEFAULTS = [
+  {id:"sub",name:"سبحان الله",  nameEn:"SubhanAllah",    target:33},
+  {id:"ham",name:"الحمد لله",   nameEn:"Alhamdulillah",  target:33},
+  {id:"akb",name:"الله أكبر",   nameEn:"Allahu Akbar",   target:34},
+  {id:"laa",name:"لا إله إلا الله",nameEn:"La ilaha illa Allah",target:100},
+];
+const loadDhikr = () => {
+  try {
+    const raw = localStorage.getItem(DHIKR_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      const today = new Date().toISOString().split("T")[0];
+      if (d.date === today) return d;
+    }
+  } catch(e) {}
+  return { date: new Date().toISOString().split("T")[0], counts: {}, custom: [] };
+};
+const saveDhikr = (d) => { try { localStorage.setItem(DHIKR_KEY, JSON.stringify(d)); } catch(e) {} };
+
+const loadHabits = () => {
+  try { const raw=localStorage.getItem(HABITS_KEY); if(raw)return JSON.parse(raw); } catch(e) {}
+  return {};
+};
+const saveHabits = (h) => { try { localStorage.setItem(HABITS_KEY, JSON.stringify(h)); } catch(e) {} };
+
+// ── Translations ───────────────────────────────────────────────────────────
+const TRANSLATIONS = {
+  en: {
+    "Daily Tasks":"Daily Tasks","Home":"Home","Today":"Today","Calendar":"Calendar",
+    "Settings":"Settings","Dhikr":"Dhikr","Habits":"Habits","Profiles":"Profiles",
+    "Add Profile":"Add Profile","Topics":"Topics","Tasks":"Tasks",
+    "New Task":"New Task","Edit Task":"Edit Task","Save":"Save","Cancel":"Cancel",
+    "Delete":"Delete","Search":"Search","Due Date":"Due Date","Time":"Time",
+    "Priority":"Priority","Urgent":"Urgent","High":"High","Normal":"Normal","Low":"Low",
+    "Pinned":"Pinned","Completed":"Completed","Notes":"Notes","Focus Mode":"Focus Mode",
+    "Add to Calendar":"Add to Calendar","Notifications":"Notifications",
+    "Appearance":"Appearance","Theme":"Theme","Accent Color":"Accent Color",
+    "Language":"Language","Export Backup":"Export Backup","Import Backup":"Import Backup",
+    "Reset All Data":"Reset All Data","Overdue":"Overdue","Due Today":"Due Today",
+    "All clear!":"All clear!","No tasks":"No tasks","Saved ✓":"Saved ✓",
+    "Select":"Select","Quick add a task…":"Quick add a task…","Add":"Add",
+    "Back":"Back","New Topic":"New Topic","Repeat":"Repeat","Time Estimate":"Time Estimate",
+    "Daily Checklist":"Daily Checklist","Resets daily":"Resets daily",
+    "Topic notes, context, or reminders…":"Topic notes, context, or reminders…",
+    "Good morning":"Good morning","Good afternoon":"Good afternoon","Good evening":"Good evening",
+    "Start your streak today!":"Start your streak today!",
+    "day streak":"day streak","Nothing overdue or due today.":"Nothing overdue or due today.",
+    "Urgency Colors":"Urgency Colors","Data":"Data",
+  },
+  ar: {
+    "Daily Tasks":"المهام اليومية","Home":"الرئيسية","Today":"اليوم","Calendar":"التقويم",
+    "Settings":"الإعدادات","Dhikr":"الذكر","Habits":"العادات","Profiles":"الملفات الشخصية",
+    "Add Profile":"إضافة ملف","Topics":"المواضيع","Tasks":"المهام",
+    "New Task":"مهمة جديدة","Edit Task":"تعديل المهمة","Save":"حفظ","Cancel":"إلغاء",
+    "Delete":"حذف","Search":"بحث","Due Date":"تاريخ الاستحقاق","Time":"الوقت",
+    "Priority":"الأولوية","Urgent":"عاجل","High":"عالٍ","Normal":"عادي","Low":"منخفض",
+    "Pinned":"مثبت","Completed":"مكتمل","Notes":"ملاحظات","Focus Mode":"وضع التركيز",
+    "Add to Calendar":"إضافة للتقويم","Notifications":"الإشعارات",
+    "Appearance":"المظهر","Theme":"السمة","Accent Color":"لون التمييز",
+    "Language":"اللغة","Export Backup":"تصدير النسخة","Import Backup":"استيراد النسخة",
+    "Reset All Data":"إعادة تعيين البيانات","Overdue":"متأخر","Due Today":"مستحق اليوم",
+    "All clear!":"كل شيء منجز!","No tasks":"لا توجد مهام","Saved ✓":"محفوظ ✓",
+    "Select":"تحديد","Quick add a task…":"إضافة سريعة…","Add":"أضف",
+    "Back":"رجوع","New Topic":"موضوع جديد","Repeat":"تكرار","Time Estimate":"تقدير الوقت",
+    "Daily Checklist":"قائمة يومية","Resets daily":"تُعاد يومياً",
+    "Topic notes, context, or reminders…":"ملاحظات، سياق، أو تذكيرات…",
+    "Good morning":"صباح الخير","Good afternoon":"مساء الخير","Good evening":"طاب مساؤك",
+    "Start your streak today!":"ابدأ سلسلتك اليوم!",
+    "day streak":"يوم متواصل","Nothing overdue or due today.":"لا شيء معلق اليوم.",
+    "Urgency Colors":"ألوان الاستعجال","Data":"البيانات",
+  },
+};
 
 const getStreakData = (users) => {
   const dates = new Set();
@@ -436,6 +540,7 @@ export default function App() {
   const [accentColor,  setAccentColor] = useState(_INITIAL_PREFS.accentColor || "");
   const [appName,      setAppName]     = useState(_INITIAL_PREFS.appName || "Daily Tasks");
   const [editingAppName, setEditingAppName] = useState(false);
+  const [lang,         setLang]        = useState(_INITIAL_PREFS.lang || "en");
   const [activeTab,    setActiveTab]   = useState("home");
   const [homeMemUser,  setHomeMemUser] = useState(null);
   const [homeMemTopic, setHomeMemTopic]= useState(null);
@@ -498,6 +603,18 @@ export default function App() {
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [calSel,   setCalSel]   = useState(new Date().toISOString().split("T")[0]);
 
+  // v6: New features
+  const [dhikrData,     setDhikrData]     = useState(loadDhikr);
+  const [habitData,     setHabitData]     = useState(loadHabits);
+  const [showTopicNotes,setShowTopicNotes]= useState(false);
+  const [captureSheet,  setCaptureSheet]  = useState(null); // null | {items,detectedTime,detectedDate,suggestedTopic}
+  const [newTopicDaily, setNewTopicDaily] = useState(false); // toggle in "New Topic" form
+  const [addHabitOpen,  setAddHabitOpen]  = useState(false);
+  const [newHabitName,  setNewHabitName]  = useState("");
+  const [newHabitEmoji, setNewHabitEmoji] = useState("✅");
+  const [newHabitColor, setNewHabitColor] = useState("#007AFF");
+  const [newHabitDays,  setNewHabitDays]  = useState([0,1,2,3,4,5,6]);
+
   const stripRef  = useRef(null);
   const sheetRef  = useRef(null);
   const editURef  = useRef(null);
@@ -519,6 +636,8 @@ export default function App() {
     ? { ..._baseT, primary: accentColor, primaryDim: accentColor + "22" }
     : _baseT;
   const isDark = themeName !== "light" && themeName !== "sand";
+  const isRTL  = lang === "ar";
+  const t = (key) => TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS.en[key] ?? key;
   const curUserData  = curUser  ? users[curUser]  : null;
   const curTopicData = curUser && curTopic ? users[curUser]?.topics[curTopic] : null;
 
@@ -625,6 +744,8 @@ export default function App() {
       @keyframes dtOverlayIn{from{opacity:0;}to{opacity:1;}}
       @keyframes dtFabPop{0%{transform:scale(0.7);opacity:0;}60%{transform:scale(1.08);}100%{transform:scale(1);opacity:1;}}
       @keyframes dtPulse{0%,100%{opacity:1;}50%{opacity:0.6;}}
+      [dir="rtl"] input,[dir="rtl"] textarea{text-align:right;}
+      [dir="rtl"] select{text-align:right;}
       ::-webkit-scrollbar{display:none!important;}
     `;
     document.head.appendChild(el);
@@ -640,8 +761,13 @@ export default function App() {
 
   // Persist preferences whenever they change
   useEffect(()=>{
-    savePrefs({ themeName, showUrgency, showBoarding, notifOn, appName, accentColor });
-  },[themeName, showUrgency, showBoarding, notifOn, appName, accentColor]);
+    savePrefs({ themeName, showUrgency, showBoarding, notifOn, appName, accentColor, lang });
+  },[themeName, showUrgency, showBoarding, notifOn, appName, accentColor, lang]);
+
+  // Persist dhikr on change (resets daily automatically in loadDhikr)
+  useEffect(()=>{ saveDhikr(dhikrData); },[dhikrData]);
+  // Persist habits on change
+  useEffect(()=>{ saveHabits(habitData); },[habitData]);
 
   // Fire notifications on mount (after 2s) and whenever the page becomes visible
   useEffect(()=>{
@@ -748,18 +874,126 @@ export default function App() {
   const toggleSub=(taskId,subId)=>{ const n=JSON.parse(JSON.stringify(users)); const task=n[curUser].topics[curTopic].tasks.find(t=>t.id===taskId); if(!task?.subtasks)return; const sub=task.subtasks.find(s=>s.id===subId); if(sub)sub.completed=!sub.completed; push(n); };
   const deleteSub=(taskId,subId)=>{ const n=JSON.parse(JSON.stringify(users)); const task=n[curUser].topics[curTopic].tasks.find(t=>t.id===taskId); if(!task?.subtasks)return; task.subtasks=task.subtasks.filter(s=>s.id!==subId); push(n); };
 
-  const doAddUser=()=>{ const name=newUserName.trim(); if(!name)return; const id=name.toLowerCase().replace(/[^a-z0-9]/g,"-"); if(users[id]){alert("Profile already exists.");return;} const n=JSON.parse(JSON.stringify(users)); n[id]={id,name,topics:{}}; push(n); setNewUserName("");setAddUser(false); };
+  const doAddUser=()=>{ const name=newUserName.trim(); if(!name)return; const id=name.toLowerCase().replace(/[^a-z0-9]/g,"-"); if(users[id])return; const n=JSON.parse(JSON.stringify(users)); n[id]={id,name,topics:{}}; push(n); setNewUserName("");setAddUser(false); };
   const deleteUser=(id)=>{ if(Object.keys(users).length<=1)return; const n=JSON.parse(JSON.stringify(users)); delete n[id]; push(n); if(curUser===id){setCurUser(null);setCurTopic(null);} };
   const saveUserName=(id,name)=>{ if(name.trim()){const n=JSON.parse(JSON.stringify(users));n[id].name=name.trim();push(n);} setEditUserId(null); };
-  const doAddTopic=()=>{ const name=newTopicTxt.trim(); if(!name||!curUser)return; const id=Date.now().toString(); const n=JSON.parse(JSON.stringify(users)); n[curUser].topics[id]={id,name,tasks:[]}; push(n); setNewTopicTxt("");setAddTopic(false); };
+  const doAddTopic=()=>{
+    const name=newTopicTxt.trim(); if(!name||!curUser)return;
+    const id=Date.now().toString(); const n=JSON.parse(JSON.stringify(users));
+    n[curUser].topics[id]={id,name,tasks:[],notes:"",isDailyChecklist:newTopicDaily,lastReset:null,lastCompletion:null};
+    push(n); setNewTopicTxt("");setAddTopic(false);setNewTopicDaily(false);
+  };
   const deleteTopic=(id)=>{ const n=JSON.parse(JSON.stringify(users)); delete n[curUser].topics[id]; push(n); if(curTopic===id)setCurTopic(null); };
   const saveTopicName=(id,name)=>{ if(name.trim()){const n=JSON.parse(JSON.stringify(users));n[curUser].topics[id].name=name.trim();push(n);} setEditTopicId(null); };
 
-  const reqNotif = async () => {
+  // ── Daily checklist auto-reset ─────────────────────────────────────────────
+  useEffect(()=>{
+    if(!curUser||!curTopic)return;
+    const tp=users[curUser]?.topics[curTopic];
+    if(!tp?.isDailyChecklist)return;
+    const today=new Date().toISOString().split("T")[0];
+    if(tp.lastReset===today)return;
+    // Save completion stats before reset
+    const done=tp.tasks.filter(t=>t.completed).length;
+    const total=tp.tasks.length;
+    const n=JSON.parse(JSON.stringify(users));
+    const ntp=n[curUser].topics[curTopic];
+    ntp.lastCompletion={date:tp.lastReset||null,done,total};
+    ntp.lastReset=today;
+    ntp.tasks=ntp.tasks.map(t=>({...t,completed:false,completedAt:null}));
+    push(n);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[curTopic]);
+
+  // ── Topic notes save (debounced) ─────────────────────────────────────────
+  const saveTopicNotes = useMemo(()=>debounce((notes)=>{
+    if(!curUser||!curTopic)return;
+    const n=JSON.parse(JSON.stringify(users));
+    if(n[curUser]?.topics[curTopic]) n[curUser].topics[curTopic].notes=notes;
+    push(n);
+  },600),[curUser,curTopic]);// eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Smart capture parser ────────────────────────────────────────────────
+  const parseCapture = (text) => {
+    const timeRx=/\b(at\s+)?(\d{1,2})(:(\d{2}))?\s*(am|pm)\b|\b(\d{2}):(\d{2})\b/i;
+    const dateRx=/\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i;
+    const tm=text.match(timeRx);
+    const dm=text.match(dateRx);
+    const commas=(text.match(/,/g)||[]).length;
+    const items=commas>=1
+      ? text.split(",").map(s=>s.replace(timeRx,"").replace(dateRx,"").trim()).filter(Boolean)
+      : [text.replace(timeRx,"").replace(dateRx,"").trim()].filter(Boolean);
+    const catKws=["groceries","grocery","shopping","work","meeting","call","personal"];
+    const matchedCat=catKws.find(k=>text.toLowerCase().includes(k));
+    const existingTopics=curUser&&curTopic?null:null; // resolved at call site
+    return {items,detectedTime:tm?tm[0]:null,detectedDate:dm?dm[1]:null,suggestedCategory:matchedCat||null,isMulti:commas>=1||!!matchedCat};
+  };
+
+  const doQuickAdd=()=>{
+    const text=quickText.trim(); if(!text)return;
+    // If not inside a topic, use simple add if in topic
+    if(!curUser||!curTopic){ setQuickText(""); return; }
+    const parsed=parseCapture(text);
+    if(parsed.isMulti){
+      // Show smart capture sheet
+      const allTopics=[];
+      Object.values(users).forEach(u=>Object.values(u.topics).forEach(tp=>allTopics.push({...tp,userName:u.name,userId:u.id})));
+      const suggested=parsed.suggestedCategory
+        ?allTopics.find(tp=>tp.name.toLowerCase().includes(parsed.suggestedCategory))
+        :allTopics.find(tp=>tp.id===curTopic);
+      setCaptureSheet({items:parsed.items,detectedTime:parsed.detectedTime,detectedDate:parsed.detectedDate,suggestedTopic:suggested||allTopics[0]||null,allTopics});
+      setQuickText(""); return;
+    }
+    // Single item — direct add
+    const n=JSON.parse(JSON.stringify(users));
+    n[curUser].topics[curTopic].tasks.push({id:Date.now(),text,description:"",completed:false,dueDate:null,dueTime:null,priority:"normal",recurrence:null,estimate:"",createdAt:new Date().toISOString(),completedAt:null,pinned:false,subtasks:[]});
+    push(n); setQuickText("");
+  };
+
+  const confirmCapture=(targetTopic)=>{
+    if(!captureSheet)return;
+    const n=JSON.parse(JSON.stringify(users));
+    let uid=targetTopic?.userId, tid=targetTopic?.id;
+    // Create quick-capture profile+topic if needed
+    if(!uid){
+      uid="quick-capture"; tid="quick-"+Date.now();
+      if(!n[uid]) n[uid]={id:uid,name:"Quick Capture",topics:{}};
+      n[uid].topics[tid]={id:tid,name:captureSheet.suggestedCategory||"Captured",tasks:[],notes:"",isDailyChecklist:false,lastReset:null,lastCompletion:null};
+    }
+    captureSheet.items.forEach((text,i)=>{
+      n[uid].topics[tid].tasks.push({id:Date.now()+i,text,description:"",completed:false,dueDate:null,dueTime:null,priority:"normal",recurrence:null,estimate:"",createdAt:new Date().toISOString(),completedAt:null,pinned:false,subtasks:[]});
+    });
+    push(n); setCaptureSheet(null);
+    if(uid!==curUser)setCurUser(uid);
+    if(tid!==curTopic)setCurTopic(tid);
+  };
+
+  // ── Habit helpers ─────────────────────────────────────────────────────────
+  const toggleHabitToday=(habitId)=>{
+    const today=new Date().toISOString().split("T")[0];
+    setHabitData(prev=>{ const n={...prev,[habitId]:{...prev[habitId],log:{...prev[habitId].log,[today]:!prev[habitId].log?.[today]}}}; return n; });
+  };
+  const habitStreak=(habit)=>{
+    let streak=0; const check=new Date();
+    while(streak<365){
+      const ds=check.toISOString().split("T")[0];
+      if(habit.log?.[ds]) streak++;
+      else break;
+      check.setDate(check.getDate()-1);
+    }
+    return streak;
+  };
+  const addHabit=()=>{
+    const name=newHabitName.trim(); if(!name)return;
+    const id="h"+Date.now();
+    setHabitData(prev=>({...prev,[id]:{id,name,emoji:newHabitEmoji,color:newHabitColor,targetDays:newHabitDays,createdAt:new Date().toISOString(),log:{}}}));
+    setNewHabitName("");setAddHabitOpen(false);
+  };
+  const deleteHabit=(id)=>{ setHabitData(prev=>{ const n={...prev}; delete n[id]; return n; }); };
     // Always allow the UI toggle to turn on — save state synchronously first
     // so it persists even if the permission prompt is dismissed or unavailable.
     setNotifOn(true);
-    savePrefs({ themeName, showUrgency, showBoarding, notifOn: true, appName, accentColor });
+    savePrefs({ themeName, showUrgency, showBoarding, notifOn: true, appName, accentColor, lang });
 
     // If the Notification API isn't available (Safari browser / older iOS),
     // the toggle still works — notifications will activate once installed as a PWA.
@@ -780,7 +1014,7 @@ export default function App() {
       if (result !== "granted") {
         // User denied the prompt — turn toggle back off
         setNotifOn(false);
-        savePrefs({ themeName, showUrgency, showBoarding, notifOn: false, appName, accentColor });
+        savePrefs({ themeName, showUrgency, showBoarding, notifOn: false, appName, accentColor, lang });
       }
     } catch(e) {
       // requestPermission threw (some browsers require a user gesture context).
@@ -1034,8 +1268,9 @@ export default function App() {
       else { setCurUser(null); setCurTopic(null); }
     } else {
       if(activeTab==="home"){ setHomeMemUser(curUser); setHomeMemTopic(curTopic); setShowSearch(false); setSearchTerm(""); }
-      const tabOrder={home:0,today:1,calendar:2,settings:3};
-      const dir=tabOrder[tabId]>tabOrder[activeTab]?"in-right":"in-left";
+      const tabOrder={home:0,today:1,dhikr:2,calendar:3,settings:4};
+      const dirFwd=tabOrder[tabId]>tabOrder[activeTab];
+      const dir=isRTL ? (dirFwd?"in-left":"in-right") : (dirFwd?"in-right":"in-left");
       setTabAnim(dir); setTimeout(()=>setTabAnim("none"),320);
       prevTabRef.current=activeTab; setActiveTab(tabId);
     }
@@ -1047,16 +1282,22 @@ export default function App() {
     <div style={{flexShrink:0,padding:"6px 14px 10px",display:"flex",alignItems:"center",gap:10}}>
       <div style={{flex:1,display:"flex",alignItems:"center",
         backgroundColor:T.tabBg, backdropFilter:"blur(24px) saturate(200%)", WebkitBackdropFilter:"blur(24px) saturate(200%)",
-        borderRadius:40, padding:"4px 8px",
+        borderRadius:40, padding:"4px 4px",
         boxShadow:isDark?"0 4px 24px rgba(0,0,0,0.55), 0 1px 4px rgba(0,0,0,0.4)":"0 4px 24px rgba(0,0,0,0.1), 0 1px 6px rgba(0,0,0,0.07)",
         border:`0.5px solid ${T.tabBorder}`}}>
-        {[{id:"home",icon:<Home size={20}/>,label:"Home"},{id:"today",icon:<Sunrise size={20}/>,label:"Today"},{id:"calendar",icon:<CalendarDays size={20}/>,label:"Calendar"},{id:"settings",icon:<Settings size={20}/>,label:"Settings"}].map(tab=>{
+        {[
+          {id:"home",    icon:<Home size={18}/>,      label:t("Home")},
+          {id:"today",   icon:<Sunrise size={18}/>,   label:t("Today")},
+          {id:"dhikr",   icon:<span style={{fontSize:15}}>📿</span>,label:t("Dhikr")},
+          {id:"calendar",icon:<CalendarDays size={18}/>,label:t("Calendar")},
+          {id:"settings",icon:<Settings size={18}/>,  label:t("Settings")},
+        ].map(tab=>{
           const active=activeTab===tab.id;
           return(
             <button key={tab.id} onClick={()=>handleTab(tab.id)}
-              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 0 7px",background:"none",border:"none",cursor:"pointer",transition:"color .2s"}}>
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"7px 0 6px",background:"none",border:"none",cursor:"pointer",transition:"color .2s"}}>
               <span style={{color:active?T.primary:T.muted,transition:"color .2s"}}>{tab.icon}</span>
-              <span style={{fontSize:9,fontWeight:700,letterSpacing:0.2,color:active?T.primary:T.muted,transition:"color .2s"}}>{tab.label}</span>
+              <span style={{fontSize:8,fontWeight:700,letterSpacing:0.2,color:active?T.primary:T.muted,transition:"color .2s",whiteSpace:"nowrap"}}>{tab.label}</span>
             </button>
           );
         })}
@@ -1078,7 +1319,7 @@ export default function App() {
     // done() saves SYNCHRONOUSLY before setState — guarantees prefs persist even if
     // the user closes the app immediately after tapping the final button
     const done=()=>{
-      savePrefs({ themeName, showUrgency, showBoarding:false, notifOn, appName, accentColor });
+      savePrefs({ themeName, showUrgency, showBoarding:false, notifOn, appName, accentColor, lang });
       setShowBoarding(false);
     };
     const steps=[
@@ -1145,20 +1386,181 @@ export default function App() {
   };
 
   // ── Today / Briefing ───────────────────────────────────────────────────────
+  // ── Dhikr ──────────────────────────────────────────────────────────────────
+  const renderDhikr=()=>{
+    const today=new Date().toISOString().split("T")[0];
+    // Reset if new day
+    const data = dhikrData.date===today ? dhikrData : {date:today,counts:{},custom:[]};
+    const allDhikr=[...DHIKR_DEFAULTS,...(data.custom||[])];
+    const totalDone=allDhikr.reduce((a,d)=>a+(data.counts[d.id]>=d.target?1:0),0);
+    return(
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0,backgroundColor:T.systemBg}}>
+        {/* Header */}
+        <div style={{backgroundColor:T.card,borderBottom:`0.5px solid ${T.sep}`,padding:"16px 20px 12px",flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div>
+              <div style={{fontSize:24,fontWeight:800,color:T.text}}>📿 {t("Dhikr")}</div>
+              <div style={{fontSize:13,color:T.muted,marginTop:2}}>{totalDone}/{allDhikr.length} completed today</div>
+            </div>
+            <button onClick={()=>setDhikrData({date:today,counts:{},custom:data.custom||[]})}
+              style={{fontSize:12,color:T.muted,background:"none",border:`1px solid ${T.sep}`,borderRadius:20,padding:"6px 12px",cursor:"pointer"}}>Reset All</button>
+          </div>
+        </div>
+        <div style={{flex:1,overflowY:"auto",minHeight:0,padding:"12px 16px 32px",display:"flex",flexDirection:"column",gap:10}}>
+          {allDhikr.map(dhikr=>{
+            const count=data.counts[dhikr.id]||0;
+            const done=count>=dhikr.target;
+            const pct=Math.min(100,(count/dhikr.target)*100);
+            return(
+              <div key={dhikr.id} style={{backgroundColor:T.card,borderRadius:16,overflow:"hidden",
+                border:`1px solid ${done?T.success+"44":T.sep}`,transition:"border .3s"}}>
+                {/* Progress bar */}
+                <div style={{height:3,backgroundColor:T.sep}}>
+                  <div style={{height:3,width:pct+"%",backgroundColor:done?T.success:T.primary,transition:"width .3s ease"}}/>
+                </div>
+                <button onClick={()=>{
+                  if(done)return;
+                  const newCount=count+1;
+                  if(navigator.vibrate) navigator.vibrate(30);
+                  setDhikrData(prev=>{
+                    const n={...prev,counts:{...prev.counts,[dhikr.id]:newCount}};
+                    return n;
+                  });
+                }}
+                  style={{width:"100%",padding:"16px",background:"none",border:"none",cursor:done?"default":"pointer",textAlign:isRTL?"right":"left",display:"flex",alignItems:"center",gap:16}}>
+                  <div style={{flex:1,textAlign:isRTL?"right":"left"}}>
+                    <div style={{fontSize:17,fontWeight:700,color:done?T.success:T.text,fontFamily:lang==="ar"?"'SF Arabic','Arial',sans-serif":"inherit"}}>{dhikr.name}</div>
+                    {lang==="en"&&<div style={{fontSize:12,color:T.muted,marginTop:2}}>{dhikr.nameEn}</div>}
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,flexShrink:0}}>
+                    <div style={{fontSize:28,fontWeight:800,color:done?T.success:T.primary,fontVariantNumeric:"tabular-nums"}}>{count}</div>
+                    <div style={{fontSize:11,color:T.muted}}>/ {dhikr.target}</div>
+                  </div>
+                  {done&&<div style={{fontSize:22,flexShrink:0}}>✅</div>}
+                </button>
+              </div>
+            );
+          })}
+          {/* Add custom dhikr */}
+          <div style={{backgroundColor:T.card,borderRadius:14,padding:"14px 16px",border:`1px dashed ${T.sep}`}}>
+            <div style={{fontSize:13,fontWeight:600,color:T.muted,marginBottom:8}}>+ Add custom dhikr</div>
+            <div style={{display:"flex",gap:8}}>
+              <input value={newHabitName} onChange={e=>setNewHabitName(e.target.value)}
+                placeholder="Dhikr name…"
+                style={{flex:1,backgroundColor:T.cardAlt,border:"none",color:T.text,borderRadius:10,padding:"9px 12px",fontSize:14,outline:"none"}}/>
+              <button onClick={()=>{
+                const name=newHabitName.trim(); if(!name)return;
+                const id="c"+Date.now();
+                setDhikrData(prev=>({...prev,custom:[...(prev.custom||[]),{id,name,nameEn:name,target:33}]}));
+                setNewHabitName("");
+              }}
+                style={{backgroundColor:T.primary,color:"#fff",border:"none",borderRadius:10,padding:"9px 14px",cursor:"pointer",fontWeight:700,fontSize:14}}>+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Habits section (rendered inside Today tab) ─────────────────────────────
+  const renderHabitsSection=()=>{
+    const today=new Date().toISOString().split("T")[0];
+    const habits=Object.values(habitData);
+    const DAY_LABELS=["S","M","T","W","T","F","S"];
+    return(
+      <div style={{padding:"16px 16px 0"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,color:T.muted}}>{t("Habits")}</div>
+          <button onClick={()=>setAddHabitOpen(v=>!v)} style={{fontSize:12,color:T.primary,background:"none",border:"none",cursor:"pointer",fontWeight:700}}>+ Add</button>
+        </div>
+        {addHabitOpen&&(
+          <div style={{backgroundColor:T.card,borderRadius:14,padding:"14px",marginBottom:10,border:`1px solid ${T.sep}`}}>
+            <input value={newHabitName} onChange={e=>setNewHabitName(e.target.value)} placeholder="Habit name…"
+              style={{width:"100%",backgroundColor:T.cardAlt,border:"none",color:T.text,borderRadius:10,padding:"9px 12px",fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
+            <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+              {["✅","🏃","📖","🙏","💧","⭐","🎯","🧘","💪","🌙","🕌","🤲","📿","🌿","🦁","🔥","❤️","🧠","✍️","🎵"].map(e=>(
+                <button key={e} onClick={()=>setNewHabitEmoji(e)}
+                  style={{fontSize:18,padding:"4px 6px",borderRadius:8,border:`2px solid ${newHabitEmoji===e?T.primary:"transparent"}`,background:"none",cursor:"pointer"}}>{e}</button>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:4,marginBottom:8}}>
+              {["M","T","W","T","F","S","S"].map((d,i)=>(
+                <button key={i} onClick={()=>setNewHabitDays(prev=>prev.includes(i)?prev.filter(x=>x!==i):[...prev,i])}
+                  style={{flex:1,padding:"6px 0",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
+                    backgroundColor:newHabitDays.includes(i)?T.primary:T.cardAlt,
+                    color:newHabitDays.includes(i)?"#fff":T.muted}}>{d}</button>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={addHabit} style={{flex:1,backgroundColor:T.primary,color:"#fff",border:"none",borderRadius:10,padding:"10px",cursor:"pointer",fontWeight:700,fontSize:14}}>Add Habit</button>
+              <button onClick={()=>setAddHabitOpen(false)} style={{flex:1,backgroundColor:T.cardAlt,color:T.muted,border:"none",borderRadius:10,padding:"10px",cursor:"pointer",fontSize:14}}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {habits.length===0&&!addHabitOpen&&(
+          <div style={{backgroundColor:T.card,borderRadius:14,padding:"16px",textAlign:"center",color:T.muted,fontSize:14}}>Track daily habits — tap + Add to start</div>
+        )}
+        {habits.map(habit=>{
+          const streak=habitStreak(habit);
+          const todayDone=!!(habit.log?.[today]);
+          const todayTargeted=habit.targetDays.includes(new Date().getDay());
+          return(
+            <div key={habit.id} style={{backgroundColor:T.card,borderRadius:14,marginBottom:8,
+              border:`1px solid ${todayDone?T.success+"44":T.sep}`}}>
+              <div style={{display:"flex",alignItems:"center",padding:"12px 14px",gap:12}}>
+                <button onClick={()=>toggleHabitToday(habit.id)}
+                  style={{width:36,height:36,borderRadius:18,flexShrink:0,border:"none",cursor:"pointer",
+                    backgroundColor:todayDone?T.success:T.cardAlt,fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {todayDone?"✅":habit.emoji}
+                </button>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:15,fontWeight:600,color:T.text}}>{habit.name}</div>
+                  <div style={{display:"flex",gap:3,marginTop:4}}>
+                    {DAY_LABELS.map((d,i)=>{
+                      const ds=new Date();ds.setDate(ds.getDate()-ds.getDay()+i);
+                      const dsStr=ds.toISOString().split("T")[0];
+                      const done=!!(habit.log?.[dsStr]);
+                      const targeted=habit.targetDays.includes(i);
+                      return <div key={i} style={{width:18,height:18,borderRadius:"50%",
+                        backgroundColor:done?T.success:targeted?"transparent":T.sep,
+                        border:targeted&&!done?`1.5px solid ${T.sep}`:done?"none":"none",
+                        display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:T.muted}}>
+                        {!done&&!targeted?"":<span style={{fontSize:7,fontWeight:700,color:done?"#fff":T.hint}}>{d}</span>}
+                      </div>;
+                    })}
+                  </div>
+                </div>
+                {streak>0&&<div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}><span style={{fontSize:14}}>🔥</span><span style={{fontSize:13,fontWeight:700,color:T.warn}}>{streak}</span></div>}
+                <button onClick={()=>deleteHabit(habit.id)} style={{color:T.muted,background:"none",border:"none",cursor:"pointer",padding:4,flexShrink:0}}><X size={14}/></button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderBriefing=()=>{
-    const hr=new Date().getHours(); const greet=hr<12?"Good morning":hr<17?"Good afternoon":"Good evening"; const greetIcon=hr<12?"🌅":hr<17?"☀️":"🌙";
+    const hr=new Date().getHours(); const greet=hr<12?t("Good morning"):hr<17?t("Good afternoon"):t("Good evening"); const greetIcon=hr<12?"🌅":hr<17?"☀️":"🌙";
     const{dueToday,overdue,doneYest}=briefing; const{streak,weekData}=streakData; const maxBar=Math.max(...weekData.map(d=>d.count),1);
     const fmtEst=(m)=>{ if(!m)return null; if(m<60)return m+"m"; const h=Math.floor(m/60),rm=m%60; return rm>0?h+"h "+rm+"m":h+"h"; };
+    const hijri=toHijri(new Date()); const islamic=isIslamicSpecial(new Date().toISOString().split("T")[0]);
     return(
       <div style={{flex:1,overflowY:"auto",minHeight:0}}>
         <div style={{padding:"28px 20px 20px",backgroundColor:T.card,borderBottom:`0.5px solid ${T.sep}`}}>
-          <div style={{fontSize:13,color:T.muted,marginBottom:4}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
+          <div style={{fontSize:13,color:T.muted,marginBottom:2}}>{new Date().toLocaleDateString(lang==="ar"?"ar-SA":"en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
+          <div style={{fontSize:12,color:T.muted,marginBottom:4,display:"flex",alignItems:"center",gap:6}}>
+            <span>{hijri.day} {hijri.monthName} {hijri.year} هـ</span>
+            {islamic&&<span style={{backgroundColor:T.primary+"22",color:T.primary,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:12}}>🌙 {islamic.label}</span>}
+          </div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:32}}>{greetIcon}</span>
             <div style={{flex:1,fontSize:28,fontWeight:800,color:T.text,letterSpacing:-0.5}}>{greet}</div>
             {urBtns()}
           </div>
         </div>
+        {/* Habits */}
+        {renderHabitsSection()}
         {/* Streak + weekly bars */}
         <div style={{margin:"16px 16px 0",backgroundColor:T.card,borderRadius:16,padding:"16px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
@@ -1307,7 +1709,7 @@ export default function App() {
               // reqNotif sets notifOn via setState — effect handles the save
             } else {
               // Save synchronously before setState in case app closes immediately
-              savePrefs({ themeName, showUrgency, showBoarding, notifOn:false, appName, accentColor });
+              savePrefs({ themeName, showUrgency, showBoarding, notifOn:false, appName, accentColor, lang });
               setNotifOn(false);
             }
           }}>
@@ -1394,6 +1796,22 @@ export default function App() {
           )}
         </div>
       </div>
+      {/* Language */}
+      <div style={S.label()}>{t("Language")}</div>
+      <div style={{...S.card(),marginBottom:20}}>
+        <div style={{display:"flex",gap:8,padding:"14px 16px"}}>
+          {[{code:"en",label:"English 🇬🇧"},{code:"ar",label:"العربية 🇸🇦"}].map(({code,label})=>(
+            <button key={code} onClick={()=>setLang(code)}
+              style={{flex:1,padding:"11px",borderRadius:12,cursor:"pointer",
+                border:`2px solid ${lang===code?T.primary:T.sep}`,
+                backgroundColor:lang===code?T.primaryDim:T.cardAlt,
+                color:lang===code?T.primary:T.text,
+                fontSize:14,fontWeight:lang===code?700:400,transition:"all .2s"}}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       {/* Urgency */}
       <div style={S.label()}>Urgency Colors</div>
       <div style={{...S.card(),marginBottom:20}}>
@@ -1464,7 +1882,8 @@ export default function App() {
           )}
           <div style={{display:"flex",gap:4,alignItems:"center"}}>{urBtns()}<button onClick={()=>setGlobalSearch(true)} style={S.ghost({padding:6,color:T.muted})}><Search size={18}/></button></div>
         </div>
-        <div style={{fontSize:14,color:T.muted,marginTop:3}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
+        <div style={{fontSize:14,color:T.muted,marginTop:3}}>{new Date().toLocaleDateString(lang==="ar"?"ar-SA":"en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
+        {(()=>{ const h=toHijri(new Date()); const isl=isIslamicSpecial(new Date().toISOString().split("T")[0]); return(<div style={{fontSize:12,color:T.muted,marginTop:1,display:"flex",alignItems:"center",gap:6}}><span>{h.day} {h.monthName} {h.year} هـ</span>{isl&&<span style={{backgroundColor:T.primary+"22",color:T.primary,fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:10}}>🌙 {isl.label}</span>}</div>); })()}
       </div>
       <div style={{padding:"16px 16px 0"}}>
         <div style={S.label()}>Profiles</div>
@@ -1507,19 +1926,32 @@ export default function App() {
               return(<div key={tp.id} style={{borderBottom:isLast?"none":`0.5px solid ${T.sep}`}}>
                 {editTopicId===tp.id?(<div style={{padding:"10px 16px"}}><input ref={editTRef} defaultValue={tp.name} style={S.inp({padding:"10px 12px",fontSize:15})} onBlur={e=>saveTopicName(tp.id,e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveTopicName(tp.id,e.target.value);if(e.key==="Escape")setEditTopicId(null);}}/></div>)
                 :(<div style={S.row()}>
-                  <div style={{width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,backgroundColor:tl==="red"?T.rRedBg:tl==="orange"?T.rOrgBg:T.primaryDim}}><ListChecks size={18} color={tl==="red"?T.rRedDt:tl==="orange"?T.rOrgDt:T.primary}/></div>
-                  <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>setCurTopic(tp.id)}><div style={{fontSize:16,fontWeight:600,color:T.text}}>{tp.name}</div><div style={{fontSize:13,color:T.muted,marginTop:2}}>{active} active · {done} done</div></div>
+                  <div style={{width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,backgroundColor:tl==="red"?T.rRedBg:tl==="orange"?T.rOrgBg:T.primaryDim}}>
+                    {tp.isDailyChecklist?<span style={{fontSize:18}}>🔄</span>:<ListChecks size={18} color={tl==="red"?T.rRedDt:tl==="orange"?T.rOrgDt:T.primary}/>}
+                  </div>
+                  <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>setCurTopic(tp.id)}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:16,fontWeight:600,color:T.text}}>{tp.name}</span>{tp.isDailyChecklist&&<span style={{fontSize:10,fontWeight:700,backgroundColor:T.primary+"22",color:T.primary,padding:"2px 7px",borderRadius:10}}>{t("Resets daily")}</span>}</div>
+                    <div style={{fontSize:13,color:T.muted,marginTop:2}}>{active} active · {done} done{tp.lastCompletion?.total>0?` · Yesterday: ${tp.lastCompletion.done}/${tp.lastCompletion.total}`:""}</div>
+                  </div>
                   <div style={{display:"flex",gap:4}}><button onClick={()=>setEditTopicId(tp.id)} style={S.ghost({padding:6,color:T.muted})}><Edit3 size={15}/></button><button onClick={()=>deleteTopic(tp.id)} style={S.ghost({padding:6,color:T.danger})}><Trash2 size={15}/></button></div>
                   <ChevronRight size={16} color={T.hint} style={{cursor:"pointer"}} onClick={()=>setCurTopic(tp.id)}/>
                 </div>)}
               </div>);
             })}
             {topicList.length===0&&<div style={{padding:24,textAlign:"center",color:T.muted,fontSize:14}}>No topics yet</div>}
-            {!addTopic?(<div style={{borderTop:topicList.length>0?`0.5px solid ${T.sep}`:"none"}}><button onClick={()=>setAddTopic(true)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer",color:T.primary,fontSize:15,fontWeight:500}}><div style={{width:28,height:28,borderRadius:14,backgroundColor:T.primary,display:"flex",alignItems:"center",justifyContent:"center"}}><Plus size={16} color="#fff"/></div>New Topic</button></div>)
-            :(<div style={{borderTop:`0.5px solid ${T.sep}`,padding:"10px 16px",display:"flex",gap:8}}>
-              <input ref={newTRef} value={newTopicTxt} onChange={e=>setNewTopicTxt(e.target.value)} placeholder="Topic name" style={S.inp({flex:1,padding:"10px 12px",fontSize:15})} onKeyDown={e=>{if(e.key==="Enter")doAddTopic();if(e.key==="Escape"){setAddTopic(false);setNewTopicTxt("");}}}/>
-              <button onClick={doAddTopic} disabled={!newTopicTxt.trim()} style={{backgroundColor:T.primary,color:"#fff",border:"none",borderRadius:12,padding:"10px 16px",fontSize:14,fontWeight:700,cursor:"pointer",opacity:newTopicTxt.trim()?1:0.4}}>Add</button>
-              <button onClick={()=>{setAddTopic(false);setNewTopicTxt("");}} style={S.ghost({color:T.muted})}>Cancel</button>
+            {!addTopic?(<div style={{borderTop:topicList.length>0?`0.5px solid ${T.sep}`:"none"}}><button onClick={()=>setAddTopic(true)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer",color:T.primary,fontSize:15,fontWeight:500}}><div style={{width:28,height:28,borderRadius:14,backgroundColor:T.primary,display:"flex",alignItems:"center",justifyContent:"center"}}><Plus size={16} color="#fff"/></div>{t("New Topic")}</button></div>)
+            :(<div style={{borderTop:`0.5px solid ${T.sep}`,padding:"10px 16px",display:"flex",flexDirection:"column",gap:8}}>
+              <div style={{display:"flex",gap:8}}>
+                <input ref={newTRef} value={newTopicTxt} onChange={e=>setNewTopicTxt(e.target.value)} placeholder="Topic name" style={S.inp({flex:1,padding:"10px 12px",fontSize:15})} onKeyDown={e=>{if(e.key==="Enter")doAddTopic();if(e.key==="Escape"){setAddTopic(false);setNewTopicTxt("");setNewTopicDaily(false);}}}/>
+                <button onClick={doAddTopic} disabled={!newTopicTxt.trim()} style={{backgroundColor:T.primary,color:"#fff",border:"none",borderRadius:12,padding:"10px 16px",fontSize:14,fontWeight:700,cursor:"pointer",opacity:newTopicTxt.trim()?1:0.4}}>Add</button>
+                <button onClick={()=>{setAddTopic(false);setNewTopicTxt("");setNewTopicDaily(false);}} style={S.ghost({color:T.muted})}>Cancel</button>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:10,paddingLeft:4}}>
+                <div onClick={()=>setNewTopicDaily(v=>!v)} style={{width:44,height:26,borderRadius:13,cursor:"pointer",position:"relative",backgroundColor:newTopicDaily?T.primary:T.cardAlt2,transition:"background .2s"}}>
+                  <span style={{position:"absolute",top:2,left:newTopicDaily?20:2,width:22,height:22,borderRadius:11,backgroundColor:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.25)",transition:"left .2s"}}/>
+                </div>
+                <span style={{fontSize:13,color:T.muted}}>{t("Daily Checklist")} — resets every day</span>
+              </div>
             </div>)}
           </div>
         </div>
@@ -1567,6 +1999,19 @@ export default function App() {
 
         {/* Time estimate banner */}
         {topicEstMins>0&&!selectMode&&(<div style={{padding:"6px 16px",backgroundColor:T.primaryDim,borderBottom:`0.5px solid ${T.sep}`,flexShrink:0,display:"flex",alignItems:"center",gap:6}}><Timer size={13} color={T.primary}/><span style={{fontSize:12,color:T.primary,fontWeight:600}}>{fmtEst(topicEstMins)} of work remaining</span></div>)}
+
+        {/* Topic Notes */}
+        {showTopicNotes&&(
+          <div style={{padding:"8px 16px",backgroundColor:T.cardAlt,borderBottom:`0.5px solid ${T.sep}`,flexShrink:0,animation:"dtFadeIn 0.2s ease"}}>
+            <textarea
+              defaultValue={curTopicData.notes||""}
+              placeholder={t("Topic notes, context, or reminders…")}
+              onChange={e=>saveTopicNotes(e.target.value)}
+              rows={3}
+              style={{width:"100%",backgroundColor:"transparent",border:"none",color:T.text,fontSize:14,resize:"none",outline:"none",fontFamily:"inherit",lineHeight:1.5,boxSizing:"border-box"}}/>
+            {(curTopicData.notes||"").length>200&&<div style={{fontSize:11,color:T.muted,textAlign:"right"}}>{(curTopicData.notes||"").length} chars</div>}
+          </div>
+        )}
 
         {/* Filter pills */}
         <div style={{display:"flex",gap:8,padding:"10px 16px",overflowX:"auto",backgroundColor:T.card,borderBottom:`0.5px solid ${T.sep}`,scrollbarWidth:"none",flexShrink:0}}>
@@ -1847,7 +2292,10 @@ export default function App() {
             <ArrowLeft size={18}/><span style={{fontSize:16}}>Back</span>
           </button>
           <div style={{flex:1}}><div style={{fontSize:17,fontWeight:700,color:T.text}}>{title}</div><div style={{fontSize:12,color:T.muted,marginTop:1}}>{subtitle}</div></div>
-          <div style={{display:"flex",alignItems:"center",gap:2}}>{urBtns()}</div>
+          <div style={{display:"flex",alignItems:"center",gap:2}}>
+            {curTopic&&(<button onClick={()=>setShowTopicNotes(v=>!v)} title="Topic notes" style={{...S.ghost({padding:6}),color:showTopicNotes?T.primary:T.muted,fontSize:18}}>📝</button>)}
+            {urBtns()}
+          </div>
         </div>
       </div>
     );
@@ -1857,14 +2305,14 @@ export default function App() {
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
   return(
-    <div style={{backgroundColor:T.systemBg,width:"100%",height:"100%",overflow:"hidden",display:"flex",flexDirection:"column",position:"relative",fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif"}}>
+    <div dir={isRTL?"rtl":"ltr"} style={{backgroundColor:T.systemBg,width:"100%",height:"100%",overflow:"hidden",display:"flex",flexDirection:"column",position:"relative",fontFamily:isRTL?"'SF Arabic','Geeza Pro','Arial',sans-serif":"-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif"}}>
       {showBoarding?(
         <div style={{flex:1,overflowY:"auto",minHeight:0,backgroundColor:T.card,display:"flex",flexDirection:"column"}}>{renderOnboarding()}</div>
       ):(
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0}}>
           {activeTab==="home"&&curUser&&renderSubNav()}
           <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0,position:"relative",...contentAnim}}>
-            {activeTab==="today"?renderBriefing():activeTab==="calendar"?renderCalendar():activeTab==="settings"?renderSettings():homeContent()}
+            {activeTab==="today"?renderBriefing():activeTab==="dhikr"?renderDhikr():activeTab==="calendar"?renderCalendar():activeTab==="settings"?renderSettings():homeContent()}
           </div>
           <TabBar/>
         </div>
@@ -1873,6 +2321,53 @@ export default function App() {
       {ctxTask&&renderCtxMenu()}
       {focusTask&&renderFocus()}
       {globalSearch&&renderGlobalSearch()}
+
+      {/* Smart Capture confirmation sheet */}
+      {captureSheet&&(
+        <div style={{position:"absolute",inset:0,zIndex:88,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
+          <div onClick={()=>setCaptureSheet(null)} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.45)",animation:"dtOverlayIn 0.2s ease"}}/>
+          <div style={{position:"relative",backgroundColor:T.card,borderRadius:"24px 24px 0 0",zIndex:1,maxHeight:"80%",display:"flex",flexDirection:"column",animation:"dtSheetUp 0.32s cubic-bezier(0.32,0.72,0,1)"}}>
+            <div style={{display:"flex",justifyContent:"center",padding:"12px 0 8px",flexShrink:0}}><div style={{width:40,height:4,borderRadius:2,backgroundColor:T.hint}}/></div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"4px 20px 12px",flexShrink:0}}>
+              <button onClick={()=>setCaptureSheet(null)} style={S.ghost({color:T.muted})}>Cancel</button>
+              <div style={{fontSize:17,fontWeight:700,color:T.text}}>⚡ Smart Capture</div>
+              <div style={{width:60}}/>
+            </div>
+            {/* Parsed items preview */}
+            <div style={{padding:"0 20px 12px",flexShrink:0}}>
+              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>{captureSheet.items.length} items</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {captureSheet.items.map((item,i)=>(
+                  <span key={i} style={{backgroundColor:T.primaryDim,color:T.primary,fontSize:13,fontWeight:600,padding:"5px 12px",borderRadius:20}}>{item}</span>
+                ))}
+              </div>
+              {captureSheet.detectedTime&&<div style={{marginTop:8,fontSize:13,color:T.success}}>⏰ Detected time: {captureSheet.detectedTime}</div>}
+            </div>
+            {/* Destination picker */}
+            <div style={{padding:"0 20px 8px",flexShrink:0}}>
+              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>Add to topic</div>
+            </div>
+            <div style={{overflowY:"auto",minHeight:0,padding:"0 20px 24px"}}>
+              {(captureSheet.allTopics||[]).map(tp=>(
+                <button key={tp.userId+"-"+tp.id} onClick={()=>confirmCapture(tp)}
+                  style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"12px 14px",marginBottom:6,backgroundColor:captureSheet.suggestedTopic?.id===tp.id?T.primaryDim:T.cardAlt,borderRadius:12,border:`1.5px solid ${captureSheet.suggestedTopic?.id===tp.id?T.primary:T.sep}`,cursor:"pointer",transition:"all .15s",textAlign:"left"}}>
+                  <div style={{width:32,height:32,borderRadius:8,backgroundColor:T.primary+"22",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><ListChecks size={15} color={T.primary}/></div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:14,fontWeight:600,color:T.text}}>{tp.name}</div>
+                    <div style={{fontSize:12,color:T.muted}}>{tp.userName}</div>
+                  </div>
+                  {captureSheet.suggestedTopic?.id===tp.id&&<span style={{fontSize:11,fontWeight:700,color:T.primary,backgroundColor:T.primary+"22",padding:"2px 8px",borderRadius:10}}>Suggested</span>}
+                </button>
+              ))}
+              <button onClick={()=>confirmCapture(null)}
+                style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"12px 14px",backgroundColor:T.cardAlt,borderRadius:12,border:`1.5px dashed ${T.sep}`,cursor:"pointer"}}>
+                <div style={{width:32,height:32,borderRadius:8,backgroundColor:T.success+"22",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Plus size={15} color={T.success}/></div>
+                <div style={{textAlign:"left"}}><div style={{fontSize:14,fontWeight:600,color:T.text}}>Create new list</div><div style={{fontSize:12,color:T.muted}}>Quick Capture → {captureSheet.suggestedCategory||"Captured"}</div></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hidden file input for import */}
       <input ref={importFileRef} type="file" accept=".json" style={{display:"none"}}
