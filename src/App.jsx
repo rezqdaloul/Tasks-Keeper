@@ -832,13 +832,6 @@ export default function App() {
     push(n); setShowSheet(false); setSheetTask(null);
   };
 
-  // v5: Quick Add (no sheet)
-  const doQuickAdd=()=>{
-    const text=quickText.trim(); if(!text||!curUser||!curTopic)return;
-    const n=JSON.parse(JSON.stringify(users));
-    n[curUser].topics[curTopic].tasks.push({id:Date.now(),text,description:"",completed:false,dueDate:null,dueTime:null,priority:"normal",recurrence:null,estimate:"",createdAt:new Date().toISOString(),completedAt:null,pinned:false,subtasks:[]});
-    push(n); setQuickText("");
-  };
 
   const toggleTask=(id,userId,topicId)=>{
     const uid=userId||curUser, tid=topicId||curTopic; if(!uid||!tid)return;
@@ -1550,8 +1543,8 @@ export default function App() {
         <div style={{padding:"28px 20px 20px",backgroundColor:T.card,borderBottom:`0.5px solid ${T.sep}`}}>
           <div style={{fontSize:13,color:T.muted,marginBottom:2}}>{new Date().toLocaleDateString(lang==="ar"?"ar-SA":"en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
           <div style={{fontSize:12,color:T.muted,marginBottom:4,display:"flex",alignItems:"center",gap:6}}>
-            <span>{hijri.day} {hijri.monthName} {hijri.year} هـ</span>
-            {islamic&&<span style={{backgroundColor:T.primary+"22",color:T.primary,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:12}}>🌙 {islamic.label}</span>}
+            <span>{hijri.day} {hijri.monthName} {hijri.year} {"\u0647\u0640"}</span>
+            {islamic&&<span style={{backgroundColor:T.primary+"22",color:T.primary,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:12}}>{"\uD83C\uDF19"} {islamic.label}</span>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:32}}>{greetIcon}</span>
@@ -1800,7 +1793,7 @@ export default function App() {
       <div style={S.label()}>{t("Language")}</div>
       <div style={{...S.card(),marginBottom:20}}>
         <div style={{display:"flex",gap:8,padding:"14px 16px"}}>
-          {[{code:"en",label:"English 🇬🇧"},{code:"ar",label:"العربية 🇸🇦"}].map(({code,label})=>(
+          {[{code:"en",label:"English \uD83C\uDDEC\uD83C\uDDE7"},{code:"ar",label:"\u0627\u0644\u0639\u0631\u0628\u064A\u0629 \uD83C\uDDF8\uD83C\uDDE6"}].map(({code,label})=>(
             <button key={code} onClick={()=>setLang(code)}
               style={{flex:1,padding:"11px",borderRadius:12,cursor:"pointer",
                 border:`2px solid ${lang===code?T.primary:T.sep}`,
@@ -1883,7 +1876,7 @@ export default function App() {
           <div style={{display:"flex",gap:4,alignItems:"center"}}>{urBtns()}<button onClick={()=>setGlobalSearch(true)} style={S.ghost({padding:6,color:T.muted})}><Search size={18}/></button></div>
         </div>
         <div style={{fontSize:14,color:T.muted,marginTop:3}}>{new Date().toLocaleDateString(lang==="ar"?"ar-SA":"en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
-        {(()=>{ const h=toHijri(new Date()); const isl=isIslamicSpecial(new Date().toISOString().split("T")[0]); return(<div style={{fontSize:12,color:T.muted,marginTop:1,display:"flex",alignItems:"center",gap:6}}><span>{h.day} {h.monthName} {h.year} هـ</span>{isl&&<span style={{backgroundColor:T.primary+"22",color:T.primary,fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:10}}>🌙 {isl.label}</span>}</div>); })()}
+        {(()=>{ const h=toHijri(new Date()); const isl=isIslamicSpecial(new Date().toISOString().split("T")[0]); return(<div style={{fontSize:12,color:T.muted,marginTop:1,display:"flex",alignItems:"center",gap:6}}><span>{h.day} {h.monthName} {h.year} {"\u0647\u0640"}</span>{isl&&<span style={{backgroundColor:T.primary+"22",color:T.primary,fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:10}}>{"\uD83C\uDF19"} {isl.label}</span>}</div>); })()}
       </div>
       <div style={{padding:"16px 16px 0"}}>
         <div style={S.label()}>Profiles</div>
