@@ -983,6 +983,8 @@ export default function App() {
     setNewHabitName("");setAddHabitOpen(false);
   };
   const deleteHabit=(id)=>{ setHabitData(prev=>{ const n={...prev}; delete n[id]; return n; }); };
+
+  const reqNotif = async () => {
     // Always allow the UI toggle to turn on — save state synchronously first
     // so it persists even if the permission prompt is dismissed or unavailable.
     setNotifOn(true);
@@ -995,9 +997,8 @@ export default function App() {
     if (Notification.permission === "granted") return; // already allowed, done
 
     if (Notification.permission === "denied") {
-      // Can't re-prompt. Toggle stays on so user sees their intent,
-      // but show instructions for how to fix it in device settings.
-      alert("Notifications are blocked for this site.\n\nTo fix: Settings → Safari → tap the site → Notifications → Allow.");
+      // Can't re-prompt — permission was denied. Toggle stays on to record intent.
+      // User must manually allow in device settings.
       return;
     }
 
