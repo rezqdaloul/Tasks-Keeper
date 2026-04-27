@@ -505,7 +505,14 @@ export default function App() {
   const newURef   = useRef(null);
   const newTRef   = useRef(null);
   const gSearchRef= useRef(null);
-  const notifFiredRef = useRef(new Set()); // tracks task IDs already notified this session
+  const notifFiredRef  = useRef(new Set());
+  const importFileRef  = useRef(null); // hidden <input type="file">
+
+  // Export / Import feedback
+  const [exportMsg,    setExportMsg]    = useState(""); // "success" | "error" | ""
+  const [importMsg,    setImportMsg]    = useState(""); // inline result message
+  const [importDialog, setImportDialog] = useState(null); // null | {conflicts, pendingUsers}
+  const [resetDialog,  setResetDialog]  = useState(false);
 
   const _baseT = THEMES[themeName] || THEMES.light;
   const T = accentColor
@@ -912,7 +919,94 @@ export default function App() {
     );
   };
 
-  const doExport = () => alert("Export / Import coming soon.");
+  // ── Export Backup ────────────────────────────────────────────────────────────
+  const doExport = () => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const payload = JSON.stringify({ version:"v5", exportedAt:new Date().toISOString(), data:users }, null, 2);
+      const blob = new Blob([payload], { type:"application/json;charset=utf-8" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `daily-tasks-backup-${today}.json`;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+      setExportMsg("success");
+      setTimeout(()=>setExportMsg(""), 3000);
+    } catch(e) {
+      setExportMsg("error");
+      setTimeout(()=>setExportMsg(""), 3000);
+    }
+  };
+
+  // ── Import Backup ────────────────────────────────────────────────────────────
+  const doImport = () => {
+    setImportMsg("");
+    importFileRef.current && importFileRef.current.click();
+  };
+
+  const handleImportFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    // Reset file input so same file can be selected again
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        // Validate structure
+        const importedUsers = parsed.data || parsed; // support both wrapped and raw
+        if (!importedUsers || typeof importedUsers !== "object" || Object.keys(importedUsers).length === 0) {
+          setImportMsg("error:Invalid backup file — no user data found.");
+          return;
+        }
+        // Check for name conflicts (case-insensitive)
+        const existingNames = Object.values(users).map(u => u.name.toLowerCase().trim());
+        const conflicts = Object.values(importedUsers)
+          .map(u => u.name)
+          .filter(name => existingNames.includes(name.toLowerCase().trim()));
+
+        if (conflicts.length > 0) {
+          // Show in-app confirmation dialog
+          setImportDialog({ conflicts, pendingUsers: importedUsers });
+        } else {
+          // No conflicts — merge immediately
+          doImportMerge(importedUsers);
+        }
+      } catch(err) {
+        setImportMsg("error:Could not read backup file. Make sure it is a valid Daily Tasks backup.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const doImportMerge = (importedUsers) => {
+    // Merge: overwrite same-name users, add new users, never touch other existing users
+    const merged = JSON.parse(JSON.stringify(users));
+    let added = 0, overwritten = 0;
+    Object.values(importedUsers).forEach(importedUser => {
+      const existingEntry = Object.entries(merged).find(
+        ([, u]) => u.name.toLowerCase().trim() === importedUser.name.toLowerCase().trim()
+      );
+      if (existingEntry) {
+        // Overwrite — keep existing user's ID key
+        merged[existingEntry[0]] = { ...importedUser, id: existingEntry[0] };
+        overwritten++;
+      } else {
+        // New user — use their original ID (or generate one)
+        const newId = importedUser.id || Date.now().toString();
+        merged[newId] = { ...importedUser, id: newId };
+        added++;
+      }
+    });
+    push(merged);
+    setImportDialog(null);
+    const parts = [];
+    if (added > 0)      parts.push(`${added} profile${added > 1 ? "s" : ""} added`);
+    if (overwritten > 0) parts.push(`${overwritten} overwritten`);
+    setImportMsg("success:✓ Import complete — " + parts.join(", ") + ".");
+    setTimeout(()=>setImportMsg(""), 5000);
+  };
 
   // ── Styles ─────────────────────────────────────────────────────────────────
   const S={
@@ -1318,12 +1412,31 @@ export default function App() {
       {/* Data */}
       <div style={S.label()}>Data</div>
       <div style={{...S.card(),marginBottom:32}}>
-        <button onClick={doExport} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer"}}><span style={{fontSize:15,color:T.text}}>Export Backup</span><Download size={16} color={T.primary}/></button>
+        {/* Export */}
+        <button onClick={doExport} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer"}}>
+          <span style={{fontSize:15,color:T.text}}>Export Backup</span>
+          <Download size={16} color={T.primary}/>
+        </button>
+        {exportMsg==="success"&&(<div style={{margin:"0 16px 10px",padding:"8px 12px",backgroundColor:T.success+"18",borderRadius:10,fontSize:13,color:T.success,fontWeight:600}}>✓ Backup downloaded successfully</div>)}
+        {exportMsg==="error"&&(<div style={{margin:"0 16px 10px",padding:"8px 12px",backgroundColor:T.danger+"18",borderRadius:10,fontSize:13,color:T.danger}}>Export failed — please try again</div>)}
         <div style={S.sep()}/>
-        <button onClick={doExport} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer"}}><span style={{fontSize:15,color:T.text}}>Import Backup</span><Upload size={16} color={T.primary}/></button>
+        {/* Import */}
+        <button onClick={doImport} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer"}}>
+          <span style={{fontSize:15,color:T.text}}>Import Backup</span>
+          <Upload size={16} color={T.primary}/>
+        </button>
+        {importMsg.startsWith("success:")&&(<div style={{margin:"0 16px 10px",padding:"8px 12px",backgroundColor:T.success+"18",borderRadius:10,fontSize:13,color:T.success,fontWeight:600}}>{importMsg.slice(8)}</div>)}
+        {importMsg.startsWith("error:")&&(<div style={{margin:"0 16px 10px",padding:"8px 12px",backgroundColor:T.danger+"18",borderRadius:10,fontSize:13,color:T.danger}}>{importMsg.slice(6)}</div>)}
         <div style={S.sep()}/>
-        <button onClick={()=>{ if(window.confirm("Reset all data? This cannot be undone.")){try{localStorage.removeItem(STORE_KEY);localStorage.removeItem(PREFS_KEY);}catch(e){} window.location.reload(); } }} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer"}}><span style={{fontSize:15,color:T.danger}}>Reset All Data</span><Trash2 size={16} color={T.danger}/></button>
-        <div style={S.sep()}/><div style={{display:"flex",justifyContent:"flex-end",padding:"12px 16px"}}><span style={{fontSize:12,color:T.muted}}>{saveStatus==="saving"?"Saving…":"Saved ✓"}</span></div>
+        {/* Reset */}
+        <button onClick={()=>setResetDialog(true)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer"}}>
+          <span style={{fontSize:15,color:T.danger}}>Reset All Data</span>
+          <Trash2 size={16} color={T.danger}/>
+        </button>
+        <div style={S.sep()}/>
+        <div style={{display:"flex",justifyContent:"flex-end",padding:"12px 16px"}}>
+          <span style={{fontSize:12,color:T.muted}}>{saveStatus==="saving"?"Saving…":"Saved ✓"}</span>
+        </div>
       </div>
     </div>
   ); };
@@ -1760,6 +1873,88 @@ export default function App() {
       {ctxTask&&renderCtxMenu()}
       {focusTask&&renderFocus()}
       {globalSearch&&renderGlobalSearch()}
+
+      {/* Hidden file input for import */}
+      <input ref={importFileRef} type="file" accept=".json" style={{display:"none"}}
+        onChange={handleImportFile}/>
+
+      {/* Import conflict confirmation dialog */}
+      {importDialog&&(
+        <div style={{position:"absolute",inset:0,zIndex:96,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
+          <div onClick={()=>setImportDialog(null)} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.5)",animation:"dtOverlayIn 0.2s ease"}}/>
+          <div style={{position:"relative",backgroundColor:T.card,borderRadius:"24px 24px 0 0",zIndex:1,
+            animation:"dtSheetUp 0.32s cubic-bezier(0.32,0.72,0,1)",padding:"0 0 32px"}}>
+            {/* Handle */}
+            <div style={{display:"flex",justifyContent:"center",padding:"12px 0 8px"}}>
+              <div style={{width:40,height:4,borderRadius:2,backgroundColor:T.hint}}/>
+            </div>
+            {/* Header */}
+            <div style={{padding:"8px 20px 16px",borderBottom:`0.5px solid ${T.sep}`}}>
+              <div style={{fontSize:11,fontWeight:700,color:T.danger,textTransform:"uppercase",letterSpacing:0.8,marginBottom:4}}>⚠️ Duplicate Profiles Found</div>
+              <div style={{fontSize:17,fontWeight:700,color:T.text,marginBottom:8}}>Overwrite existing data?</div>
+              <div style={{fontSize:14,color:T.muted,lineHeight:1.5}}>
+                The following profiles in your backup already exist in the app. Importing will overwrite their data. All other profiles will be added without changes.
+              </div>
+            </div>
+            {/* Conflict list */}
+            <div style={{padding:"12px 20px",maxHeight:180,overflowY:"auto"}}>
+              {importDialog.conflicts.map(name=>(
+                <div key={name} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",
+                  backgroundColor:T.danger+"12",borderRadius:12,marginBottom:8,
+                  border:`1px solid ${T.danger}30`}}>
+                  <span style={{fontSize:16}}>⚠️</span>
+                  <span style={{fontSize:15,fontWeight:600,color:T.text}}>{name}</span>
+                  <span style={{fontSize:12,color:T.danger,marginLeft:"auto"}}>will be overwritten</span>
+                </div>
+              ))}
+            </div>
+            {/* Action buttons */}
+            <div style={{padding:"8px 20px 0",display:"flex",flexDirection:"column",gap:10}}>
+              <button onClick={()=>doImportMerge(importDialog.pendingUsers)}
+                style={{padding:"15px",borderRadius:14,backgroundColor:T.danger,border:"none",
+                  cursor:"pointer",fontSize:16,fontWeight:700,color:"#fff",
+                  boxShadow:`0 4px 16px ${T.danger}44`}}>
+                Continue Import
+              </button>
+              <button onClick={()=>setImportDialog(null)}
+                style={{padding:"15px",borderRadius:14,backgroundColor:T.cardAlt,border:"none",
+                  cursor:"pointer",fontSize:16,fontWeight:600,color:T.text}}>
+                Cancel Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset All Data confirmation dialog */}
+      {resetDialog&&(
+        <div style={{position:"absolute",inset:0,zIndex:96,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
+          <div onClick={()=>setResetDialog(false)} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.5)",animation:"dtOverlayIn 0.2s ease"}}/>
+          <div style={{position:"relative",backgroundColor:T.card,borderRadius:"24px 24px 0 0",zIndex:1,
+            animation:"dtSheetUp 0.32s cubic-bezier(0.32,0.72,0,1)",padding:"0 0 32px"}}>
+            <div style={{display:"flex",justifyContent:"center",padding:"12px 0 8px"}}>
+              <div style={{width:40,height:4,borderRadius:2,backgroundColor:T.hint}}/>
+            </div>
+            <div style={{padding:"8px 20px 20px",textAlign:"center"}}>
+              <div style={{fontSize:32,marginBottom:12}}>🗑️</div>
+              <div style={{fontSize:19,fontWeight:700,color:T.text,marginBottom:8}}>Reset All Data?</div>
+              <div style={{fontSize:14,color:T.muted,lineHeight:1.5}}>This will permanently delete all profiles, topics, and tasks. This action cannot be undone.</div>
+            </div>
+            <div style={{padding:"0 20px",display:"flex",flexDirection:"column",gap:10}}>
+              <button onClick={()=>{ try{localStorage.removeItem(STORE_KEY);localStorage.removeItem(PREFS_KEY);}catch(e){} window.location.reload(); }}
+                style={{padding:"15px",borderRadius:14,backgroundColor:T.danger,border:"none",
+                  cursor:"pointer",fontSize:16,fontWeight:700,color:"#fff"}}>
+                Delete Everything
+              </button>
+              <button onClick={()=>setResetDialog(false)}
+                style={{padding:"15px",borderRadius:14,backgroundColor:T.cardAlt,border:"none",
+                  cursor:"pointer",fontSize:16,fontWeight:600,color:T.text}}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
