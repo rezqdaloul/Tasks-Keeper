@@ -13,105 +13,75 @@ const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = se
 const THEMES = {
   light: {
     name:"Light", emoji:"☀️",
-    systemBg:"#F2F2F7",
-    card:"rgba(255,255,255,0.80)", cardAlt:"rgba(242,242,247,0.85)", cardAlt2:"#E5E5EA",
-    sep:"rgba(60,60,67,0.10)", sepHard:"rgba(60,60,67,0.25)",
+    systemBg:"#F2F2F7", card:"#FFFFFF", cardAlt:"#F2F2F7", cardAlt2:"#E5E5EA",
+    sep:"rgba(60,60,67,0.12)", sepHard:"rgba(60,60,67,0.3)",
     text:"#000000", muted:"#6E6E73", hint:"#AEAEB2",
-    primary:"#007AFF", primaryDim:"rgba(0,122,255,0.10)",
+    primary:"#007AFF", primaryDim:"#E8F0FE",
     success:"#34C759", danger:"#FF3B30", warn:"#FF9500",
-    rRedBg:"rgba(255,59,48,0.08)", rRedBd:"#FF3B30", rRedTx:"#C8001A", rRedDt:"#FF3B30",
-    rOrgBg:"rgba(255,149,0,0.08)", rOrgBd:"#FF9500", rOrgTx:"#7D3F00", rOrgDt:"#FF9500",
-    star:"#FF9500", pinBg:"rgba(255,149,0,0.06)", ageBg:"rgba(174,174,178,0.15)", ageTx:"#8E8E93",
-    tabBg:"rgba(255,255,255,0.75)", tabBorder:"rgba(0,0,0,0.08)",
-    blur:"blur(28px) saturate(180%)",
-    cardBorder:"rgba(0,0,0,0.07)", cardShadow:"0 4px 24px rgba(0,0,0,0.08)", cardInner:"inset 0 1px 0 rgba(255,255,255,0.9)",
-    glow:"rgba(0,122,255,0.35)", glowSuccess:"rgba(52,199,89,0.35)", glowDanger:"rgba(255,59,48,0.35)",
-    radialBg:"radial-gradient(ellipse at 50% 0%, rgba(0,122,255,0.06) 0%, transparent 60%)",
+    rRedBg:"#FFE5E5", rRedBd:"#FF3B30", rRedTx:"#C8001A", rRedDt:"#FF3B30",
+    rOrgBg:"#FFF4E0", rOrgBd:"#FF9500", rOrgTx:"#7D3F00", rOrgDt:"#FF9500",
+    star:"#FF9500", pinBg:"#FFFBF2", ageBg:"#F9F9F9", ageTx:"#AEAEB2",
+    tabBg:"rgba(255,255,255,0.96)", tabBorder:"rgba(0,0,0,0.06)",
   },
   dark: {
     name:"Dark", emoji:"🌙",
-    systemBg:"#000000",
-    card:"rgba(18,18,26,0.95)", cardAlt:"rgba(28,28,38,0.92)", cardAlt2:"rgba(38,38,52,0.90)",
-    sep:"rgba(255,255,255,0.07)", sepHard:"rgba(255,255,255,0.18)",
-    text:"#FFFFFF", muted:"#8E8E93", hint:"#3A3A3C",
-    primary:"#0A84FF", primaryDim:"rgba(10,132,255,0.15)",
+    systemBg:"#000000", card:"#1C1C1E", cardAlt:"#2C2C2E", cardAlt2:"#3A3A3C",
+    sep:"rgba(255,255,255,0.08)", sepHard:"rgba(255,255,255,0.2)",
+    text:"#FFFFFF", muted:"#8E8E93", hint:"#48484A",
+    primary:"#0A84FF", primaryDim:"#001D3D",
     success:"#30D158", danger:"#FF453A", warn:"#FF9F0A",
-    rRedBg:"rgba(255,69,58,0.14)", rRedBd:"rgba(255,69,58,0.5)", rRedTx:"#FF9999", rRedDt:"#FF453A",
-    rOrgBg:"rgba(255,159,10,0.14)", rOrgBd:"rgba(255,159,10,0.5)", rOrgTx:"#FFB347", rOrgDt:"#FF9F0A",
-    star:"#FF9F0A", pinBg:"rgba(255,159,10,0.08)", ageBg:"rgba(44,44,46,0.85)", ageTx:"#636366",
-    tabBg:"rgba(12,12,18,0.85)", tabBorder:"rgba(255,255,255,0.06)",
-    blur:"blur(32px) saturate(200%)",
-    cardBorder:"rgba(255,255,255,0.07)", cardShadow:"0 8px 32px rgba(0,0,0,0.6)", cardInner:"inset 0 1px 0 rgba(255,255,255,0.06)",
-    glow:"rgba(10,132,255,0.45)", glowSuccess:"rgba(48,209,88,0.40)", glowDanger:"rgba(255,69,58,0.40)",
-    radialBg:"radial-gradient(ellipse at 50% 0%, rgba(10,132,255,0.12) 0%, transparent 60%)",
+    rRedBg:"#3A0000", rRedBd:"#FF453A", rRedTx:"#FF9999", rRedDt:"#FF453A",
+    rOrgBg:"#2D1400", rOrgBd:"#FF9F0A", rOrgTx:"#FFB347", rOrgDt:"#FF9F0A",
+    star:"#FF9F0A", pinBg:"#1F1600", ageBg:"#2C2C2E", ageTx:"#636366",
+    tabBg:"rgba(44,44,46,0.96)", tabBorder:"rgba(255,255,255,0.08)",
   },
   midnight: {
     name:"Midnight", emoji:"🌌",
-    systemBg:"#000010",
-    card:"rgba(10,10,28,0.96)", cardAlt:"rgba(18,18,42,0.93)", cardAlt2:"rgba(26,26,58,0.90)",
-    sep:"rgba(100,120,255,0.10)", sepHard:"rgba(100,120,255,0.22)",
+    systemBg:"#000010", card:"#0A0A1A", cardAlt:"#12122A", cardAlt2:"#1A1A35",
+    sep:"rgba(100,120,255,0.12)", sepHard:"rgba(100,120,255,0.25)",
     text:"#E8EAFF", muted:"#7B82B8", hint:"#3D4275",
-    primary:"#818CF8", primaryDim:"rgba(129,140,248,0.15)",
-    success:"#34D399", danger:"#F87171", warn:"#FBBF24",
-    rRedBg:"rgba(248,113,113,0.12)", rRedBd:"rgba(248,113,113,0.45)", rRedTx:"#FCA5A5", rRedDt:"#F87171",
-    rOrgBg:"rgba(251,191,36,0.12)", rOrgBd:"rgba(251,191,36,0.45)", rOrgTx:"#FDE68A", rOrgDt:"#FBBF24",
-    star:"#FBBF24", pinBg:"rgba(129,140,248,0.08)", ageBg:"rgba(18,18,42,0.93)", ageTx:"#3D4275",
-    tabBg:"rgba(8,8,20,0.88)", tabBorder:"rgba(129,140,248,0.12)",
-    blur:"blur(32px) saturate(200%)",
-    cardBorder:"rgba(129,140,248,0.10)", cardShadow:"0 8px 40px rgba(80,60,200,0.18)", cardInner:"inset 0 1px 0 rgba(129,140,248,0.08)",
-    glow:"rgba(129,140,248,0.50)", glowSuccess:"rgba(52,211,153,0.40)", glowDanger:"rgba(248,113,113,0.40)",
-    radialBg:"radial-gradient(ellipse at 50% 0%, rgba(129,140,248,0.14) 0%, transparent 60%)",
+    primary:"#4FC3F7", primaryDim:"#0A1A2A",
+    success:"#00E676", danger:"#FF5252", warn:"#FFD740",
+    rRedBg:"#1A0005", rRedBd:"#FF5252", rRedTx:"#FF8A80", rRedDt:"#FF5252",
+    rOrgBg:"#1A0F00", rOrgBd:"#FFD740", rOrgTx:"#FFE57F", rOrgDt:"#FFD740",
+    star:"#FFD740", pinBg:"#0D0D20", ageBg:"#12122A", ageTx:"#3D4275",
+    tabBg:"rgba(10,10,26,0.97)", tabBorder:"rgba(79,195,247,0.15)",
   },
   sand: {
     name:"Sand", emoji:"🏜️",
-    systemBg:"#FAF7F2",
-    card:"rgba(255,255,255,0.80)", cardAlt:"rgba(245,240,232,0.85)", cardAlt2:"rgba(237,229,216,0.88)",
-    sep:"rgba(160,120,80,0.12)", sepHard:"rgba(160,120,80,0.30)",
+    systemBg:"#FAF7F2", card:"#FFFFFF", cardAlt:"#F5F0E8", cardAlt2:"#EDE5D8",
+    sep:"rgba(160,120,80,0.14)", sepHard:"rgba(160,120,80,0.35)",
     text:"#2C1A0E", muted:"#8C6A4A", hint:"#C4A882",
-    primary:"#C1440E", primaryDim:"rgba(193,68,14,0.10)",
+    primary:"#C1440E", primaryDim:"#FAEDE8",
     success:"#3D8B37", danger:"#C1440E", warn:"#D4890A",
-    rRedBg:"rgba(193,68,14,0.08)", rRedBd:"rgba(193,68,14,0.4)", rRedTx:"#8B2000", rRedDt:"#C1440E",
-    rOrgBg:"rgba(212,137,10,0.08)", rOrgBd:"rgba(212,137,10,0.4)", rOrgTx:"#7D4E00", rOrgDt:"#D4890A",
-    star:"#D4890A", pinBg:"rgba(212,137,10,0.06)", ageBg:"rgba(245,240,232,0.88)", ageTx:"#C4A882",
-    tabBg:"rgba(255,250,244,0.78)", tabBorder:"rgba(160,120,80,0.15)",
-    blur:"blur(28px) saturate(160%)",
-    cardBorder:"rgba(160,120,80,0.10)", cardShadow:"0 4px 20px rgba(160,120,80,0.10)", cardInner:"inset 0 1px 0 rgba(255,255,255,0.85)",
-    glow:"rgba(193,68,14,0.35)", glowSuccess:"rgba(61,139,55,0.35)", glowDanger:"rgba(193,68,14,0.35)",
-    radialBg:"radial-gradient(ellipse at 50% 0%, rgba(193,68,14,0.06) 0%, transparent 60%)",
+    rRedBg:"#FAEDE8", rRedBd:"#C1440E", rRedTx:"#8B2000", rRedDt:"#C1440E",
+    rOrgBg:"#FDF5E0", rOrgBd:"#D4890A", rOrgTx:"#7D4E00", rOrgDt:"#D4890A",
+    star:"#D4890A", pinBg:"#FDF8F0", ageBg:"#F5F0E8", ageTx:"#C4A882",
+    tabBg:"rgba(255,255,255,0.97)", tabBorder:"rgba(160,120,80,0.18)",
   },
   forest: {
     name:"Forest", emoji:"🌲",
-    systemBg:"#0D1F0F",
-    card:"rgba(18,32,22,0.96)", cardAlt:"rgba(26,46,28,0.93)", cardAlt2:"rgba(34,61,36,0.90)",
-    sep:"rgba(111,207,151,0.10)", sepHard:"rgba(111,207,151,0.22)",
+    systemBg:"#0D1F0F", card:"#122016", cardAlt:"#1A2E1C", cardAlt2:"#223D24",
+    sep:"rgba(111,207,151,0.12)", sepHard:"rgba(111,207,151,0.25)",
     text:"#D4EDDA", muted:"#6B9E78", hint:"#2E5035",
-    primary:"#6FCF97", primaryDim:"rgba(111,207,151,0.14)",
+    primary:"#6FCF97", primaryDim:"#0D2016",
     success:"#6FCF97", danger:"#FF6B6B", warn:"#FFD93D",
-    rRedBg:"rgba(255,107,107,0.12)", rRedBd:"rgba(255,107,107,0.45)", rRedTx:"#FFA0A0", rRedDt:"#FF6B6B",
-    rOrgBg:"rgba(255,217,61,0.12)", rOrgBd:"rgba(255,217,61,0.45)", rOrgTx:"#FFE88A", rOrgDt:"#FFD93D",
-    star:"#FFD93D", pinBg:"rgba(111,207,151,0.08)", ageBg:"rgba(26,46,28,0.93)", ageTx:"#2E5035",
-    tabBg:"rgba(10,22,12,0.88)", tabBorder:"rgba(111,207,151,0.10)",
-    blur:"blur(32px) saturate(200%)",
-    cardBorder:"rgba(111,207,151,0.10)", cardShadow:"0 8px 32px rgba(0,0,0,0.45)", cardInner:"inset 0 1px 0 rgba(111,207,151,0.08)",
-    glow:"rgba(111,207,151,0.45)", glowSuccess:"rgba(111,207,151,0.45)", glowDanger:"rgba(255,107,107,0.40)",
-    radialBg:"radial-gradient(ellipse at 50% 0%, rgba(111,207,151,0.12) 0%, transparent 60%)",
+    rRedBg:"#1A0D0D", rRedBd:"#FF6B6B", rRedTx:"#FF9999", rRedDt:"#FF6B6B",
+    rOrgBg:"#1A1500", rOrgBd:"#FFD93D", rOrgTx:"#FFE57F", rOrgDt:"#FFD93D",
+    star:"#FFD93D", pinBg:"#0D1A0F", ageBg:"#1A2E1C", ageTx:"#2E5035",
+    tabBg:"rgba(18,32,22,0.97)", tabBorder:"rgba(111,207,151,0.15)",
   },
   slate: {
     name:"Slate", emoji:"🪨",
-    systemBg:"#1E2530",
-    card:"rgba(30,38,52,0.96)", cardAlt:"rgba(40,50,66,0.93)", cardAlt2:"rgba(50,62,82,0.90)",
-    sep:"rgba(246,173,85,0.10)", sepHard:"rgba(246,173,85,0.22)",
+    systemBg:"#1E2530", card:"#252D3A", cardAlt:"#2D3748", cardAlt2:"#364155",
+    sep:"rgba(246,173,85,0.12)", sepHard:"rgba(246,173,85,0.25)",
     text:"#EDF2F7", muted:"#A0AEC0", hint:"#4A5568",
-    primary:"#F6AD55", primaryDim:"rgba(246,173,85,0.14)",
+    primary:"#F6AD55", primaryDim:"#2D2010",
     success:"#68D391", danger:"#FC8181", warn:"#F6AD55",
-    rRedBg:"rgba(252,129,129,0.12)", rRedBd:"rgba(252,129,129,0.45)", rRedTx:"#FEB2B2", rRedDt:"#FC8181",
-    rOrgBg:"rgba(246,173,85,0.12)", rOrgBd:"rgba(246,173,85,0.45)", rOrgTx:"#FCD34D", rOrgDt:"#F6AD55",
-    star:"#F6AD55", pinBg:"rgba(246,173,85,0.08)", ageBg:"rgba(40,50,66,0.93)", ageTx:"#4A5568",
-    tabBg:"rgba(18,24,34,0.88)", tabBorder:"rgba(246,173,85,0.10)",
-    blur:"blur(32px) saturate(200%)",
-    cardBorder:"rgba(246,173,85,0.10)", cardShadow:"0 8px 32px rgba(0,0,0,0.45)", cardInner:"inset 0 1px 0 rgba(246,173,85,0.07)",
-    glow:"rgba(246,173,85,0.45)", glowSuccess:"rgba(104,211,145,0.40)", glowDanger:"rgba(252,129,129,0.40)",
-    radialBg:"radial-gradient(ellipse at 50% 0%, rgba(246,173,85,0.10) 0%, transparent 60%)",
+    rRedBg:"#2D1515", rRedBd:"#FC8181", rRedTx:"#FEB2B2", rRedDt:"#FC8181",
+    rOrgBg:"#2D2010", rOrgBd:"#F6AD55", rOrgTx:"#FCD34D", rOrgDt:"#F6AD55",
+    star:"#F6AD55", pinBg:"#252D3A", ageBg:"#2D3748", ageTx:"#4A5568",
+    tabBg:"rgba(37,45,58,0.97)", tabBorder:"rgba(246,173,85,0.15)",
   },
 };
 
@@ -324,33 +294,23 @@ function SwipeRow({ task, rowNum, isLast, T, expandSubs, setExpandSubs, subInput
   const inp   = (e) => ({ backgroundColor:T.cardAlt, border:"none", color:T.text, borderRadius:12, padding:"12px 14px", fontSize:15, outline:"none", width:"100%", boxSizing:"border-box", ...(e||{}) });
 
   return (
-    <div style={{ borderBottom:isLast?"none":`1px solid ${T.sep}`, ...rowAnim, animation:animPhase==="idle"?"dtRowAdd 0.28s cubic-bezier(0.34,1.56,0.64,1) both":rowAnim.animation }}>
+    <div style={{ borderBottom:isLast?"none":`0.5px solid ${T.sep}`, ...rowAnim }}>
       <div style={{ position:"relative", overflow:"hidden" }}>
         {/* Swipe reveal BGs */}
-        <div style={{ position:"absolute", left:0, top:0, bottom:0, width:Math.max(0,Math.min(swipeX,THRESHOLD)),
-          background:`linear-gradient(90deg, ${T.success}DD, ${T.success})`,
-          boxShadow:swipeX>10?`inset -4px 0 12px rgba(0,0,0,0.15)`:"none",
-          display:"flex", alignItems:"center", paddingLeft:20, opacity:swipeX>10?1:0, transition:"opacity .12s" }}>
-          <div style={{width:28,height:28,borderRadius:14,backgroundColor:"rgba(255,255,255,0.22)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <Check size={16} color="#fff" strokeWidth={3}/>
-          </div>
+        <div style={{ position:"absolute", left:0, top:0, bottom:0, width:Math.max(0,Math.min(swipeX,THRESHOLD)), backgroundColor:T.success, display:"flex", alignItems:"center", paddingLeft:16, opacity:swipeX>10?1:0, transition:"opacity .15s" }}>
+          <Check size={20} color="#fff"/>
         </div>
-        <div style={{ position:"absolute", right:0, top:0, bottom:0, width:Math.max(0,Math.min(-swipeX,THRESHOLD)),
-          background:`linear-gradient(270deg, ${T.danger}DD, ${T.danger})`,
-          boxShadow:swipeX<-10?`inset 4px 0 12px rgba(0,0,0,0.15)`:"none",
-          display:"flex", alignItems:"center", justifyContent:"flex-end", paddingRight:20, opacity:swipeX<-10?1:0, transition:"opacity .12s" }}>
-          <div style={{width:28,height:28,borderRadius:14,backgroundColor:"rgba(255,255,255,0.22)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <Trash2 size={16} color="#fff" strokeWidth={2.5}/>
-          </div>
+        <div style={{ position:"absolute", right:0, top:0, bottom:0, width:Math.max(0,Math.min(-swipeX,THRESHOLD)), backgroundColor:T.danger, display:"flex", alignItems:"center", justifyContent:"flex-end", paddingRight:16, opacity:swipeX<-10?1:0, transition:"opacity .15s" }}>
+          <Trash2 size={20} color="#fff"/>
         </div>
 
         <div
           onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
           onTouchCancel={() => { setSwipeX(0); setSwiping(false); }}
-          style={{ display:"flex", alignItems:"center", padding:"13px 14px", gap:9,
-            backgroundColor:selected ? T.primaryDim : isPinned ? T.pinBg : "transparent",
+          style={{ display:"flex", alignItems:"center", padding:"12px 14px", gap:9,
+            backgroundColor:selected ? T.primaryDim : isPinned ? T.pinBg : T.card,
             transform:`translateX(${swipeX}px)`,
-            transition:swiping ? "none" : "transform .26s cubic-bezier(0.34,1.56,0.64,1)",
+            transition:swiping ? "none" : "transform .22s cubic-bezier(0.25,0.46,0.45,0.94)",
             position:"relative", zIndex:1 }}>
 
           {/* Select mode checkbox OR up/down reorder */}
@@ -386,11 +346,8 @@ function SwipeRow({ task, rowNum, isLast, T, expandSubs, setExpandSubs, subInput
 
           <button onClick={() => toggleTask(task.id)}
             style={{ flexShrink:0, width:22, height:22, borderRadius:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0,
-              border:`2px solid ${task.completed?T.success:T.sepHard}`,
-              backgroundColor:task.completed?T.success:"transparent",
-              boxShadow:task.completed?`0 0 10px ${T.glowSuccess||T.success+"66"}`:"none",
-              transition:"all .25s cubic-bezier(0.34,1.56,0.64,1)" }}>
-            {task.completed && <Check size={12} color="#fff" strokeWidth={3}/>}
+              border:`2px solid ${task.completed?T.success:T.sepHard}`, backgroundColor:task.completed?T.success:"transparent", transition:"all .2s" }}>
+            {task.completed && <Check size={12} color="#fff"/>}
           </button>
 
           {isPinned && <Star size={12} color={T.star} fill={T.star} style={{ flexShrink:0 }}/>}
@@ -425,9 +382,7 @@ function SwipeRow({ task, rowNum, isLast, T, expandSubs, setExpandSubs, subInput
             </div>
           </div>
 
-          {ul !== "none" && <span style={{ width:8, height:8, borderRadius:"50%", flexShrink:0,
-            backgroundColor:ul==="red"?T.rRedDt:T.rOrgDt,
-            boxShadow:`0 0 8px ${ul==="red"?(T.glowDanger||T.rRedDt+"88"):(T.warn+"88")}`}}/>}
+          {ul !== "none" && <span style={{ width:8, height:8, borderRadius:"50%", flexShrink:0, backgroundColor:ul==="red"?T.rRedDt:T.rOrgDt }}/>}
           <button onClick={e => { e.stopPropagation(); setExpandSubs(p=>({...p,[task.id]:!p[task.id]})); }}
             style={ghost({ padding:4, color:isExpanded?T.primary:T.muted })}>
             <ListChecks size={14}/>
@@ -661,18 +616,15 @@ export default function App() {
       html,body{overflow:hidden!important;overscroll-behavior:none!important;position:fixed!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;}
       #root{width:100%!important;height:100%!important;max-width:none!important;overflow:hidden!important;}
       *{-webkit-tap-highlight-color:transparent;}
-      @keyframes dtComplete{0%{opacity:1;transform:translateX(0);}25%{background:rgba(48,209,88,0.18);}60%{transform:translateX(-8px);opacity:0.6;max-height:80px;}100%{transform:translateX(-100%);opacity:0;max-height:0;padding-top:0;padding-bottom:0;overflow:hidden;}}
-      @keyframes dtDelete{0%{transform:translateX(0) scaleY(1);opacity:1;}40%{transform:translateX(40%) scaleY(1);}100%{transform:translateX(110%) scaleY(0.5);opacity:0;max-height:0;padding:0;overflow:hidden;}}
-      @keyframes dtFadeIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
-      @keyframes dtRowAdd{from{opacity:0;transform:translateY(-10px) scaleY(0.92);}to{opacity:1;transform:translateY(0) scaleY(1);}}
-      @keyframes dtSlideInRight{from{transform:translateX(40px);opacity:0;}to{transform:translateX(0);opacity:1;}}
-      @keyframes dtSlideInLeft{from{transform:translateX(-40px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+      @keyframes dtComplete{0%{opacity:1;}30%{background:rgba(52,199,89,0.18);}70%{opacity:0.5;max-height:80px;}100%{opacity:0;max-height:0;padding-top:0;padding-bottom:0;overflow:hidden;}}
+      @keyframes dtDelete{0%{transform:translateX(0);opacity:1;}100%{transform:translateX(110%);opacity:0;}}
+      @keyframes dtFadeIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+      @keyframes dtSlideInRight{from{transform:translateX(38px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+      @keyframes dtSlideInLeft{from{transform:translateX(-38px);opacity:0;}to{transform:translateX(0);opacity:1;}}
       @keyframes dtSheetUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
       @keyframes dtOverlayIn{from{opacity:0;}to{opacity:1;}}
-      @keyframes dtFabPop{0%{transform:scale(0.55);opacity:0;}65%{transform:scale(1.12);}85%{transform:scale(0.96);}100%{transform:scale(1);opacity:1;}}
-      @keyframes dtFabGlow{0%,100%{box-shadow:0 6px 20px var(--fab-glow,rgba(10,132,255,0.5));}50%{box-shadow:0 6px 32px var(--fab-glow,rgba(10,132,255,0.75)),0 0 48px var(--fab-glow,rgba(10,132,255,0.3));}}
+      @keyframes dtFabPop{0%{transform:scale(0.7);opacity:0;}60%{transform:scale(1.08);}100%{transform:scale(1);opacity:1;}}
       @keyframes dtPulse{0%,100%{opacity:1;}50%{opacity:0.6;}}
-      @keyframes dtGlowIn{from{box-shadow:0 0 0 0 var(--glow,rgba(10,132,255,0.4));}to{box-shadow:0 0 0 4px transparent;}}
       ::-webkit-scrollbar{display:none!important;}
     `;
     document.head.appendChild(el);
@@ -1058,14 +1010,14 @@ export default function App() {
 
   // ── Styles ─────────────────────────────────────────────────────────────────
   const S={
-    inp:(e)=>({backgroundColor:T.cardAlt,border:`1px solid ${T.cardBorder||T.sep}`,color:T.text,borderRadius:14,padding:"12px 14px",fontSize:15,outline:"none",width:"100%",boxSizing:"border-box",backdropFilter:T.blur,...(e||{})}),
-    primBtn:(e)=>({backgroundColor:T.primary,color:"#fff",border:"none",borderRadius:14,padding:"14px",fontSize:16,fontWeight:700,cursor:"pointer",width:"100%",boxShadow:`0 4px 20px ${T.glow||T.primary+"55"}`,transition:"transform .15s, box-shadow .15s",...(e||{})}),
+    inp:(e)=>({backgroundColor:T.cardAlt,border:"none",color:T.text,borderRadius:12,padding:"12px 14px",fontSize:15,outline:"none",width:"100%",boxSizing:"border-box",...(e||{})}),
+    primBtn:(e)=>({backgroundColor:T.primary,color:isDark||themeName==="midnight"||themeName==="forest"||themeName==="slate"?"#fff":"#fff",border:"none",borderRadius:12,padding:"14px",fontSize:16,fontWeight:700,cursor:"pointer",width:"100%",...(e||{})}),
     ghost:(e)=>({background:"none",border:"none",color:T.primary,fontSize:15,cursor:"pointer",fontWeight:500,...(e||{})}),
-    pill:(active,e)=>({padding:"7px 16px",borderRadius:20,border:"none",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,transition:"all .22s",backgroundColor:active?T.primary:"transparent",color:active?"#fff":T.muted,boxShadow:active?`0 2px 12px ${T.glow||T.primary+"44"}`:"none",...(e||{})}),
-    card:(e)=>({backgroundColor:T.card,borderRadius:20,overflow:"hidden",border:`1px solid ${T.cardBorder||T.sep}`,boxShadow:`${T.cardShadow||"0 4px 24px rgba(0,0,0,0.12)"}, ${T.cardInner||""}`,backdropFilter:T.blur,...(e||{})}),
+    pill:(active,e)=>({padding:"7px 16px",borderRadius:20,border:"none",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,backgroundColor:active?T.primary:T.cardAlt,color:active?"#fff":T.muted,...(e||{})}),
+    card:(e)=>({backgroundColor:T.card,borderRadius:16,overflow:"hidden",...(e||{})}),
     row:(e)=>({display:"flex",alignItems:"center",padding:"13px 16px",gap:12,...(e||{})}),
-    sep:()=>({height:"1px",backgroundColor:T.sep,margin:"0 16px"}),
-    label:(color)=>({fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1.0,color:color||T.muted,marginBottom:8,paddingLeft:4}),
+    sep:()=>({height:1,backgroundColor:T.sep,margin:"0 16px"}),
+    label:(color)=>({fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:0.8,color:color||T.muted,marginBottom:8,paddingLeft:4}),
   };
 
   const urBtns=()=>{ return (
@@ -1094,32 +1046,24 @@ export default function App() {
   const TabBar=()=>{ return (
     <div style={{flexShrink:0,padding:"6px 14px 10px",display:"flex",alignItems:"center",gap:10}}>
       <div style={{flex:1,display:"flex",alignItems:"center",
-        backgroundColor:T.tabBg, backdropFilter:T.blur, WebkitBackdropFilter:T.blur,
+        backgroundColor:T.tabBg, backdropFilter:"blur(24px) saturate(200%)", WebkitBackdropFilter:"blur(24px) saturate(200%)",
         borderRadius:40, padding:"4px 8px",
-        boxShadow:isDark?"0 8px 40px rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.5)":"0 4px 24px rgba(0,0,0,0.1), 0 1px 6px rgba(0,0,0,0.07)",
-        border:`1px solid ${T.tabBorder}`}}>
+        boxShadow:isDark?"0 4px 24px rgba(0,0,0,0.55), 0 1px 4px rgba(0,0,0,0.4)":"0 4px 24px rgba(0,0,0,0.1), 0 1px 6px rgba(0,0,0,0.07)",
+        border:`0.5px solid ${T.tabBorder}`}}>
         {[{id:"home",icon:<Home size={20}/>,label:"Home"},{id:"today",icon:<Sunrise size={20}/>,label:"Today"},{id:"calendar",icon:<CalendarDays size={20}/>,label:"Calendar"},{id:"settings",icon:<Settings size={20}/>,label:"Settings"}].map(tab=>{
           const active=activeTab===tab.id;
           return(
             <button key={tab.id} onClick={()=>handleTab(tab.id)}
-              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 0 7px",background:"none",border:"none",cursor:"pointer",transition:"all .22s",opacity:active?1:0.45,transform:active?"scale(1.06)":"scale(1)"}}>
-              <span style={{color:active?T.primary:T.text,transition:"color .22s"}}>{tab.icon}</span>
-              {active
-                ? <span style={{fontSize:9,fontWeight:700,letterSpacing:0.2,color:T.primary}}>{tab.label}</span>
-                : <span style={{width:4,height:4,borderRadius:2,backgroundColor:T.hint,display:"block"}}/>
-              }
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 0 7px",background:"none",border:"none",cursor:"pointer",transition:"color .2s"}}>
+              <span style={{color:active?T.primary:T.muted,transition:"color .2s"}}>{tab.icon}</span>
+              <span style={{fontSize:9,fontWeight:700,letterSpacing:0.2,color:active?T.primary:T.muted,transition:"color .2s"}}>{tab.label}</span>
             </button>
           );
         })}
       </div>
       {showFab&&(
-        <button onClick={openAdd}
-          style={{width:52,height:52,borderRadius:26,flexShrink:0,backgroundColor:T.primary,border:"none",cursor:"pointer",
-            display:"flex",alignItems:"center",justifyContent:"center",
-            boxShadow:`0 6px 24px ${T.glow||T.primary+"55"}, 0 2px 8px ${T.glow||T.primary+"33"}`,
-            animation:"dtFabPop 0.4s cubic-bezier(0.34,1.56,0.64,1)",
-            transition:"box-shadow .3s, transform .15s"}}>
-          <Plus size={24} color="#fff" strokeWidth={2.5}/>
+        <button onClick={openAdd} style={{width:52,height:52,borderRadius:26,flexShrink:0,backgroundColor:T.primary,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 16px ${T.primary}55`,animation:"dtFabPop 0.3s ease"}}>
+          <Plus size={24} color="#fff"/>
         </button>
       )}
     </div>
@@ -1207,7 +1151,7 @@ export default function App() {
     const fmtEst=(m)=>{ if(!m)return null; if(m<60)return m+"m"; const h=Math.floor(m/60),rm=m%60; return rm>0?h+"h "+rm+"m":h+"h"; };
     return(
       <div style={{flex:1,overflowY:"auto",minHeight:0}}>
-        <div style={{padding:"28px 20px 20px",background:`${T.radialBg||"transparent"}, ${T.card}`,borderBottom:`1px solid ${T.sep}`}}>
+        <div style={{padding:"28px 20px 20px",backgroundColor:T.card,borderBottom:`0.5px solid ${T.sep}`}}>
           <div style={{fontSize:13,color:T.muted,marginBottom:4}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:32}}>{greetIcon}</span>
@@ -1216,21 +1160,15 @@ export default function App() {
           </div>
         </div>
         {/* Streak + weekly bars */}
-        <div style={{margin:"16px 16px 0",borderRadius:20,padding:"16px",border:`1px solid ${T.cardBorder||T.sep}`,boxShadow:`${T.cardShadow||""}, ${T.cardInner||""}`,backgroundColor:T.card,backdropFilter:T.blur}}>
+        <div style={{margin:"16px 16px 0",backgroundColor:T.card,borderRadius:16,padding:"16px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <Flame size={18} color={streak>0?T.warn:T.muted} style={{filter:streak>0?`drop-shadow(0 0 6px ${T.warn})`:"none"}}/>
-              <span style={{fontSize:15,fontWeight:700,color:T.text}}>{streak>0?streak+" day streak":"Start your streak today!"}</span>
-            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}><Flame size={18} color={streak>0?T.warn:T.muted}/><span style={{fontSize:15,fontWeight:700,color:T.text}}>{streak>0?streak+" day streak":"Start your streak today!"}</span></div>
             <BarChart2 size={16} color={T.muted}/>
           </div>
           <div style={{display:"flex",alignItems:"flex-end",gap:6,height:48}}>
             {weekData.map(({ds,day,count})=>{ const isToday=ds===new Date().toISOString().split("T")[0]; const barH=count>0?Math.max(8,Math.round((count/maxBar)*44)):4;
               return(<div key={ds} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                <div style={{width:"100%",height:barH,borderRadius:4,
-                  backgroundColor:isToday?T.primary:count>0?T.success:T.sep,
-                  boxShadow:isToday?`0 0 10px ${T.glow||T.primary+"66"}`:count>0?`0 0 6px ${T.glowSuccess||T.success+"44"}`:"none",
-                  transition:"height .4s cubic-bezier(0.34,1.56,0.64,1)"}}/>
+                <div style={{width:"100%",height:barH,borderRadius:4,backgroundColor:isToday?T.primary:count>0?T.success:T.sep,transition:"height .3s"}}/>
                 <span style={{fontSize:9,color:isToday?T.primary:T.muted,fontWeight:isToday?700:400}}>{day}</span>
               </div>);
             })}
@@ -1238,10 +1176,9 @@ export default function App() {
         </div>
         {/* Stat cards */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,padding:"12px 16px 0"}}>
-          {[{label:"Overdue",v:overdue.length,c:overdue.length>0?T.danger:T.success,g:overdue.length>0?(T.glowDanger||T.danger+"55"):T.glowSuccess||T.success+"44"},{label:"Due Today",v:dueToday.length,c:dueToday.length>0?T.primary:T.success,g:dueToday.length>0?(T.glow||T.primary+"55"):T.glowSuccess||T.success+"44"},{label:"Done Yesterday",v:doneYest,c:T.success,g:T.glowSuccess||T.success+"44"}].map(({label,v,c,g})=>(
-            <div key={label} style={{...S.card({padding:"14px 10px",textAlign:"center",overflow:"visible"})}}>
-              <div style={{fontSize:28,fontWeight:800,color:c,textShadow:`0 0 16px ${g}`}}>{v}</div>
-              <div style={{fontSize:11,color:T.muted,marginTop:3,lineHeight:1.3}}>{label}</div>
+          {[{label:"Overdue",v:overdue.length,c:overdue.length>0?T.danger:T.success},{label:"Due Today",v:dueToday.length,c:dueToday.length>0?T.primary:T.success},{label:"Done Yesterday",v:doneYest,c:T.success}].map(({label,v,c})=>(
+            <div key={label} style={{backgroundColor:T.card,borderRadius:14,padding:"12px 10px",textAlign:"center"}}>
+              <div style={{fontSize:26,fontWeight:800,color:c}}>{v}</div><div style={{fontSize:11,color:T.muted,marginTop:2,lineHeight:1.3}}>{label}</div>
             </div>
           ))}
         </div>
@@ -1392,12 +1329,12 @@ export default function App() {
             width:51, height:31, borderRadius:16, flexShrink:0, position:"relative",
             backgroundColor:notifOn ? T.success : T.cardAlt2,
             transition:"background-color .25s",
-            boxShadow:notifOn?`0 0 10px ${T.glowSuccess||T.success+"55"}`:`inset 0 0 0 1px ${T.sepHard}`}}>
+            boxShadow:`inset 0 0 0 1px ${notifOn?"transparent":T.sepHard}`}}>
             <span style={{
               position:"absolute", top:2, left:notifOn?22:2,
               width:27, height:27, borderRadius:14,
               backgroundColor:"#fff",
-              boxShadow:"0 2px 8px rgba(0,0,0,0.30)",
+              boxShadow:"0 2px 6px rgba(0,0,0,0.28)",
               transition:"left .25s cubic-bezier(0.34,1.56,0.64,1)"}}/>
           </div>
         </div>
@@ -1410,14 +1347,11 @@ export default function App() {
             const active=themeName===key;
             return(
               <button key={key} onClick={()=>setThemeName(key)}
-                style={{padding:"12px 8px",borderRadius:16,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:5,
-                  transition:"all .24s cubic-bezier(0.34,1.56,0.64,1)",
-                  border:`2px solid ${active?T.primary:"transparent"}`,
-                  backgroundColor:th.card,
-                  boxShadow:active?`0 0 18px ${T.glow||T.primary+"55"}, 0 0 0 1px ${T.primary+"33"}`:`0 2px 8px rgba(0,0,0,0.15)`,
-                  transform:active?"scale(1.05)":"scale(1)"}}>
+                style={{padding:"10px 8px",borderRadius:14,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:5,transition:"all .2s",
+                  border:`2px solid ${active?T.primary:T.sep}`,
+                  backgroundColor:active?T.primaryDim:th.cardAlt}}>
                 <span style={{fontSize:22}}>{th.emoji}</span>
-                <span style={{fontSize:12,fontWeight:700,color:active?T.primary:th.muted}}>{th.name}</span>
+                <span style={{fontSize:12,fontWeight:700,color:active?T.primary:T.muted}}>{th.name}</span>
                 <div style={{display:"flex",gap:3}}>
                   {[th.systemBg,th.primary,th.success].map((c,i)=>(<span key={i} style={{width:8,height:8,borderRadius:"50%",backgroundColor:c,border:`1px solid ${th.sep}`}}/>))}
                 </div>
@@ -1465,15 +1399,8 @@ export default function App() {
       <div style={{...S.card(),marginBottom:20}}>
         <div style={S.row({justifyContent:"space-between"})}>
           <div><div style={{fontSize:15,fontWeight:500,color:T.text}}>Due-Date Highlighting</div><div style={{fontSize:13,color:T.muted,marginTop:2}}>🔴 Today/overdue · 🟠 2 days left</div></div>
-          <div onClick={()=>setShowUrgency(v=>!v)}
-            style={{width:52,height:30,borderRadius:15,cursor:"pointer",position:"relative",flexShrink:0,
-              backgroundColor:showUrgency?T.primary:T.cardAlt2,
-              transition:"background .25s",
-              boxShadow:showUrgency?`0 0 10px ${T.glow||T.primary+"55"}`:"none"}}>
-            <span style={{position:"absolute",top:3,left:showUrgency?25:3,width:24,height:24,
-              borderRadius:"50%",backgroundColor:"#fff",
-              boxShadow:"0 2px 6px rgba(0,0,0,0.3)",
-              transition:"left .25s cubic-bezier(0.34,1.56,0.64,1)"}}/>
+          <div onClick={()=>setShowUrgency(v=>!v)} style={{width:50,height:30,borderRadius:15,cursor:"pointer",position:"relative",flexShrink:0,backgroundColor:showUrgency?T.primary:T.cardAlt2,transition:"background .2s"}}>
+            <span style={{position:"absolute",top:3,left:showUrgency?23:3,width:24,height:24,borderRadius:"50%",backgroundColor:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.25)",transition:"left .2s"}}/>
           </div>
         </div>
         {showUrgency&&(<div style={{padding:"0 16px 14px"}}><div style={S.sep()}/><div style={{paddingTop:12,display:"flex",flexDirection:"column",gap:10}}>
@@ -1546,12 +1473,7 @@ export default function App() {
             return(<div key={user.id} style={{borderBottom:isLast?"none":`0.5px solid ${T.sep}`}}>
               {editUserId===user.id?(<div style={{padding:"10px 16px"}}><input ref={editURef} defaultValue={user.name} style={S.inp({padding:"10px 12px",fontSize:15})} onBlur={e=>saveUserName(user.id,e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveUserName(user.id,e.target.value);if(e.key==="Escape")setEditUserId(null);}}/></div>)
               :(<div style={S.row()}>
-                <div style={{width:44,height:44,borderRadius:22,
-                  background:`linear-gradient(135deg, ${T.primary}CC, ${T.primary})`,
-                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
-                  boxShadow:`0 4px 14px ${T.glow||T.primary+"55"}`}}>
-                  <span style={{fontSize:18,fontWeight:800,color:"#fff"}}>{user.name.charAt(0).toUpperCase()}</span>
-                </div>
+                <div style={{width:40,height:40,borderRadius:20,backgroundColor:T.primaryDim,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:16,fontWeight:700,color:T.primary}}>{user.name.charAt(0).toUpperCase()}</span></div>
                 <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>setCurUser(user.id)}>
                   <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:16,fontWeight:600,color:T.text}}>{user.name}</span>{ul!=="none"&&<span style={{width:7,height:7,borderRadius:"50%",backgroundColor:ul==="red"?T.rRedDt:T.rOrgDt}}/>}</div>
                   <div style={{fontSize:13,color:T.muted,marginTop:2}}>{Object.keys(user.topics).length} topics · {Object.values(user.topics).reduce((a,tp)=>a+tp.tasks.length,0)} tasks</div>
@@ -1585,12 +1507,7 @@ export default function App() {
               return(<div key={tp.id} style={{borderBottom:isLast?"none":`0.5px solid ${T.sep}`}}>
                 {editTopicId===tp.id?(<div style={{padding:"10px 16px"}}><input ref={editTRef} defaultValue={tp.name} style={S.inp({padding:"10px 12px",fontSize:15})} onBlur={e=>saveTopicName(tp.id,e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveTopicName(tp.id,e.target.value);if(e.key==="Escape")setEditTopicId(null);}}/></div>)
                 :(<div style={S.row()}>
-                  <div style={{width:44,height:44,borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
-                    backgroundColor:tl==="red"?T.rRedBg:tl==="orange"?T.rOrgBg:T.primaryDim,
-                    border:`1px solid ${tl==="red"?T.rRedBd:tl==="orange"?T.rOrgBd:T.cardBorder||T.sep}`,
-                    boxShadow:tl==="red"?`0 0 12px ${T.glowDanger||T.danger+"44"}`:tl==="orange"?`0 0 12px ${T.warn+"44"}`:`0 0 8px ${T.glow||T.primary+"33"}`}}>
-                    <ListChecks size={18} color={tl==="red"?T.rRedDt:tl==="orange"?T.rOrgDt:T.primary}/>
-                  </div>
+                  <div style={{width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,backgroundColor:tl==="red"?T.rRedBg:tl==="orange"?T.rOrgBg:T.primaryDim}}><ListChecks size={18} color={tl==="red"?T.rRedDt:tl==="orange"?T.rOrgDt:T.primary}/></div>
                   <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>setCurTopic(tp.id)}><div style={{fontSize:16,fontWeight:600,color:T.text}}>{tp.name}</div><div style={{fontSize:13,color:T.muted,marginTop:2}}>{active} active · {done} done</div></div>
                   <div style={{display:"flex",gap:4}}><button onClick={()=>setEditTopicId(tp.id)} style={S.ghost({padding:6,color:T.muted})}><Edit3 size={15}/></button><button onClick={()=>deleteTopic(tp.id)} style={S.ghost({padding:6,color:T.danger})}><Trash2 size={15}/></button></div>
                   <ChevronRight size={16} color={T.hint} style={{cursor:"pointer"}} onClick={()=>setCurTopic(tp.id)}/>
@@ -1629,12 +1546,7 @@ export default function App() {
     return(
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0,position:"relative"}}>
         {/* Progress bar */}
-        <div style={{height:3,backgroundColor:T.sep,flexShrink:0}}>
-          <div style={{height:3,width:progress+"%",
-            background:`linear-gradient(90deg, ${T.primary}, ${T.glow?T.primary+"CC":T.primary+"AA"})`,
-            boxShadow:`0 0 8px ${T.glow||T.primary+"55"}`,
-            transition:"width .5s cubic-bezier(0.34,1.56,0.64,1)"}}/>
-        </div>
+        <div style={{height:3,backgroundColor:T.sep,flexShrink:0}}><div style={{height:3,width:progress+"%",backgroundColor:T.primary,transition:"width .5s ease"}}/></div>
 
         {/* v5: Batch action bar */}
         {selectMode&&(
@@ -1722,8 +1634,8 @@ export default function App() {
   // ── Add/Edit sheet ─────────────────────────────────────────────────────────
   const renderSheet=()=>{ return (
     <div style={{position:"absolute",inset:0,zIndex:80,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-      <div onClick={()=>{setShowSheet(false);setSheetTask(null);}} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.65)",animation:"dtOverlayIn 0.2s ease",backdropFilter:"blur(4px)"}}/>
-      <div style={{position:"relative",backgroundColor:T.card,borderRadius:"28px 28px 0 0",zIndex:1,maxHeight:"90%",overflowY:"auto",animation:"dtSheetUp 0.38s cubic-bezier(0.34,1.56,0.64,1)",border:`1px solid ${T.cardBorder||T.sep}`,boxShadow:`${T.cardShadow||""}, ${T.cardInner||""}`,backdropFilter:T.blur}}>
+      <div onClick={()=>{setShowSheet(false);setSheetTask(null);}} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.45)",animation:"dtOverlayIn 0.2s ease"}}/>
+      <div style={{position:"relative",backgroundColor:T.card,borderRadius:"24px 24px 0 0",zIndex:1,maxHeight:"90%",overflowY:"auto",animation:"dtSheetUp 0.32s cubic-bezier(0.32,0.72,0,1)"}}>
         <div style={{display:"flex",justifyContent:"center",padding:"12px 0 8px"}}><div style={{width:40,height:4,borderRadius:2,backgroundColor:T.hint}}/></div>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"4px 20px",marginBottom:16}}>
           <button onClick={()=>{setShowSheet(false);setSheetTask(null);}} style={S.ghost({color:T.muted})}>Cancel</button>
@@ -1774,22 +1686,17 @@ export default function App() {
     ].filter(Boolean);
     return(
       <div style={{position:"absolute",inset:0,zIndex:90,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-        <div onClick={()=>setCtxTask(null)} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.65)",animation:"dtOverlayIn 0.2s ease",backdropFilter:"blur(4px)"}}/>
-        <div style={{position:"relative",zIndex:1,margin:"0 8px",marginBottom:8,animation:"dtSheetUp 0.32s cubic-bezier(0.34,1.56,0.64,1)"}}>
-          <div style={{...S.card({padding:"12px 16px",textAlign:"center",marginBottom:8,borderRadius:20})}}><div style={{fontSize:13,color:T.muted,lineHeight:1.4}}>{task.text}</div></div>
-          <div style={{...S.card({borderRadius:20,overflow:"hidden",marginBottom:8})}}>
+        <div onClick={()=>setCtxTask(null)} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.4)",animation:"dtOverlayIn 0.2s ease"}}/>
+        <div style={{position:"relative",zIndex:1,margin:"0 8px",marginBottom:8,animation:"dtSheetUp 0.25s cubic-bezier(0.32,0.72,0,1)"}}>
+          <div style={{backgroundColor:T.card,borderRadius:16,padding:"12px 16px",textAlign:"center",marginBottom:8}}><div style={{fontSize:13,color:T.muted,lineHeight:1.4}}>{task.text}</div></div>
+          <div style={{backgroundColor:T.card,borderRadius:16,overflow:"hidden",marginBottom:8}}>
             {actions.map(({label,icon,action,danger},i)=>(
-              <button key={label} onClick={action} style={{display:"flex",alignItems:"center",gap:14,width:"100%",padding:"15px 20px",background:"none",border:"none",textAlign:"left",fontSize:16,cursor:"pointer",color:danger?T.danger:T.text,borderBottom:i<actions.length-1?`1px solid ${T.sep}`:"none",transition:"opacity .15s"}}>
-                <span style={{width:32,height:32,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",
-                  backgroundColor:danger?T.rRedBg:T.primaryDim,flexShrink:0,
-                  boxShadow:danger?`0 0 8px ${T.glowDanger||T.danger+"33"}`:`0 0 8px ${T.glow||T.primary+"22"}`}}>
-                  <span style={{color:danger?T.danger:T.primary}}>{icon}</span>
-                </span>
-                {label}
+              <button key={label} onClick={action} style={{display:"flex",alignItems:"center",gap:14,width:"100%",padding:"15px 20px",background:"none",border:"none",textAlign:"left",fontSize:16,cursor:"pointer",color:danger?T.danger:T.text,borderBottom:i<actions.length-1?`0.5px solid ${T.sep}`:"none",transition:"opacity .15s"}}>
+                <span style={{color:danger?T.danger:T.primary}}>{icon}</span>{label}
               </button>
             ))}
           </div>
-          <button onClick={()=>setCtxTask(null)} style={{width:"100%",padding:15,...S.card({}),border:"none",borderRadius:20,fontSize:17,fontWeight:700,color:T.primary,cursor:"pointer",textAlign:"center",boxShadow:`${T.cardShadow||""}, ${T.cardInner||""}`}}>Cancel</button>
+          <button onClick={()=>setCtxTask(null)} style={{width:"100%",padding:15,backgroundColor:T.card,border:"none",borderRadius:16,fontSize:17,fontWeight:700,color:T.primary,cursor:"pointer"}}>Cancel</button>
         </div>
       </div>
     );
@@ -1802,9 +1709,7 @@ export default function App() {
     const progress=(1-(focusSecs/totalSecs))*628; // SVG circumference = 2π×100 ≈ 628
     const DURATIONS=[5,10,15,25,30,45,60];
     return(
-      <div style={{position:"absolute",inset:0,zIndex:92,display:"flex",flexDirection:"column",
-        background:`radial-gradient(ellipse at 50% 30%, ${T.primaryDim} 0%, ${T.systemBg} 65%), ${T.systemBg}`,
-        animation:"dtOverlayIn 0.3s ease"}}>
+      <div style={{position:"absolute",inset:0,zIndex:92,display:"flex",flexDirection:"column",backgroundColor:T.systemBg,animation:"dtOverlayIn 0.25s ease"}}>
         {/* Header */}
         <div style={{padding:"16px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <button onClick={()=>{setFocusTask(null);setFocusRunning(false);setFocusFinished(false);clearInterval(focusInterval.current);}} style={S.ghost({color:T.muted,fontSize:15})}>✕ Exit</button>
@@ -1837,17 +1742,16 @@ export default function App() {
         <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:32}}>
           <div style={{position:"relative",width:220,height:220}}>
             <svg width="220" height="220" style={{transform:"rotate(-90deg)"}}>
-              <circle cx="110" cy="110" r="100" fill="none" stroke={T.sep} strokeWidth="6"/>
-              <circle cx="110" cy="110" r="100" fill="none" stroke={focusFinished?T.success:T.primary} strokeWidth="6"
+              <circle cx="110" cy="110" r="100" fill="none" stroke={T.cardAlt} strokeWidth="8"/>
+              <circle cx="110" cy="110" r="100" fill="none" stroke={focusFinished?T.success:T.primary} strokeWidth="8"
                 strokeDasharray="628" strokeDashoffset={Math.max(0,628-progress)}
-                style={{transition:"stroke-dashoffset 1s linear",strokeLinecap:"round",
-                  filter:`drop-shadow(0 0 8px ${focusFinished?(T.glowSuccess||T.success+"88"):(T.glow||T.primary+"88")})`}}/>
+                style={{transition:"stroke-dashoffset 1s linear",strokeLinecap:"round"}}/>
             </svg>
             <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
               {focusFinished ? (
                 <div style={{textAlign:"center"}}>
                   <div style={{fontSize:40,marginBottom:8}}>🎉</div>
-                  <div style={{fontSize:18,fontWeight:700,color:T.success,textShadow:`0 0 16px ${T.glowSuccess||T.success+"88"}`}}>Done!</div>
+                  <div style={{fontSize:18,fontWeight:700,color:T.success}}>Done!</div>
                 </div>
               ) : (
                 <div style={{fontSize:52,fontWeight:200,color:T.text,fontVariantNumeric:"tabular-nums",letterSpacing:-2}}>
@@ -1869,10 +1773,7 @@ export default function App() {
             </button>
             {!focusFinished&&(
               <button onClick={()=>setFocusRunning(v=>!v)}
-                style={{width:72,height:72,borderRadius:36,backgroundColor:T.primary,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
-                  boxShadow:`0 8px 32px ${T.glow||T.primary+"66"}, 0 0 0 1px ${T.primary+"33"}`,
-                  animation:focusRunning?"dtFabGlow 2s ease-in-out infinite":"none",
-                  transition:"transform .18s cubic-bezier(0.34,1.56,0.64,1)"}}>
+                style={{width:72,height:72,borderRadius:36,backgroundColor:T.primary,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 6px 20px ${T.primary}55`,animation:focusRunning?"dtPulse 2s infinite":"none"}}>
                 {focusRunning ? <Pause size={28} color="#fff"/> : <Play size={28} color="#fff"/>}
               </button>
             )}
@@ -1980,10 +1881,9 @@ export default function App() {
       {/* Import conflict confirmation dialog */}
       {importDialog&&(
         <div style={{position:"absolute",inset:0,zIndex:96,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-          <div onClick={()=>setImportDialog(null)} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.65)",animation:"dtOverlayIn 0.2s ease",backdropFilter:"blur(4px)"}}/>
-          <div style={{position:"relative",backgroundColor:T.card,borderRadius:"28px 28px 0 0",zIndex:1,
-            animation:"dtSheetUp 0.38s cubic-bezier(0.34,1.56,0.64,1)",padding:"0 0 32px",
-            border:`1px solid ${T.cardBorder||T.sep}`,boxShadow:`${T.cardShadow||""}, ${T.cardInner||""}`,backdropFilter:T.blur}}>
+          <div onClick={()=>setImportDialog(null)} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.5)",animation:"dtOverlayIn 0.2s ease"}}/>
+          <div style={{position:"relative",backgroundColor:T.card,borderRadius:"24px 24px 0 0",zIndex:1,
+            animation:"dtSheetUp 0.32s cubic-bezier(0.32,0.72,0,1)",padding:"0 0 32px"}}>
             {/* Handle */}
             <div style={{display:"flex",justifyContent:"center",padding:"12px 0 8px"}}>
               <div style={{width:40,height:4,borderRadius:2,backgroundColor:T.hint}}/>
@@ -2029,10 +1929,9 @@ export default function App() {
       {/* Reset All Data confirmation dialog */}
       {resetDialog&&(
         <div style={{position:"absolute",inset:0,zIndex:96,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-          <div onClick={()=>setResetDialog(false)} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.65)",animation:"dtOverlayIn 0.2s ease",backdropFilter:"blur(4px)"}}/>
-          <div style={{position:"relative",backgroundColor:T.card,borderRadius:"28px 28px 0 0",zIndex:1,
-            animation:"dtSheetUp 0.38s cubic-bezier(0.34,1.56,0.64,1)",padding:"0 0 32px",
-            border:`1px solid ${T.cardBorder||T.sep}`,boxShadow:`${T.cardShadow||""}, ${T.cardInner||""}`,backdropFilter:T.blur}}>
+          <div onClick={()=>setResetDialog(false)} style={{position:"absolute",inset:0,backgroundColor:"rgba(0,0,0,0.5)",animation:"dtOverlayIn 0.2s ease"}}/>
+          <div style={{position:"relative",backgroundColor:T.card,borderRadius:"24px 24px 0 0",zIndex:1,
+            animation:"dtSheetUp 0.32s cubic-bezier(0.32,0.72,0,1)",padding:"0 0 32px"}}>
             <div style={{display:"flex",justifyContent:"center",padding:"12px 0 8px"}}>
               <div style={{width:40,height:4,borderRadius:2,backgroundColor:T.hint}}/>
             </div>
